@@ -18,7 +18,22 @@ import {
   Loader2,
   Trophy,
   Zap,
+  Brain,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  CartesianGrid,
+} from "recharts";
 
 export const Route = createFileRoute("/")({
   head: () => ({
