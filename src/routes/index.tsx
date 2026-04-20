@@ -296,11 +296,28 @@ function StrategyTab() {
 }
 
 /* ============ REFLEXÃO ============ */
+type CoachResponse = {
+  message: string;
+  tone: "ríspido" | "disciplinado";
+  stats: {
+    completionRate: number;
+    missedTrainingDays: number;
+    missedRecent: string[];
+    totalCheckins: number;
+    trainingDays: number;
+    daysWindow: number;
+    lazinessSignals: number;
+    sentCounts: Record<string, number>;
+  };
+};
+
 function ReflectionTab() {
   const [content, setContent] = useState("");
   const [sentiment, setSentiment] = useState<string>("neutro");
   const [saving, setSaving] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[] | null>(null);
+  const [coach, setCoach] = useState<CoachResponse | null>(null);
+  const [coaching, setCoaching] = useState(false);
 
   async function load() {
     const { data } = await supabase
@@ -327,6 +344,21 @@ function ReflectionTab() {
     setContent("");
     toast.success("Reflexão registrada");
     load();
+  }
+
+  async function callCoach() {
+    setCoaching(true);
+    setCoach(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("coach-analyze");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setCoach(data as CoachResponse);
+    } catch (e: any) {
+      toast.error("Coach indisponível", { description: e?.message ?? "Tente novamente." });
+    } finally {
+      setCoaching(false);
+    }
   }
 
   const sentiments = [
@@ -367,9 +399,67 @@ function ReflectionTab() {
               </button>
             ))}
           </div>
-          <Button onClick={save} disabled={saving || !content.trim()} className="w-full">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar reflexão"}
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button onClick={save} disabled={saving || !content.trim()} className="flex-1">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar reflexão"}
+            </Button>
+            <Button
+              onClick={callCoach}
+              disabled={coaching}
+              variant="outline"
+              className="flex-1 gap-2 border-accent/40"
+            >
+              {coaching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Brain className="h-4 w-4" /> Falar com o Coach
+                </>
+              )}
+            </Button>
+          </div>
+
+          {coach && (
+            <Card
+              className="mt-2 border-0 overflow-hidden"
+              style={{
+                background:
+                  coach.tone === "ríspido"
+                    ? "linear-gradient(135deg, oklch(0.25 0.08 25), oklch(0.18 0.04 25))"
+                    : "linear-gradient(135deg, oklch(0.22 0.05 200), oklch(0.16 0.03 220))",
+                boxShadow: "var(--shadow-glow)",
+              }}
+            >
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  {coach.tone === "ríspido" ? (
+                    <AlertTriangle className="h-5 w-5 text-destructive-foreground" />
+                  ) : (
+                    <Brain className="h-5 w-5 text-accent" />
+                  )}
+                  <span className="text-xs uppercase tracking-widest text-foreground/80">
+                    Coach · modo {coach.tone}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {coach.message}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1 text-xs">
+                  <Badge variant="secondary">
+                    Consistência: {(coach.stats.completionRate * 100).toFixed(0)}%
+                  </Badge>
+                  <Badge variant="secondary">
+                    Treinos perdidos: {coach.stats.missedTrainingDays}/{coach.stats.daysWindow}d
+                  </Badge>
+                  {coach.stats.lazinessSignals > 0 && (
+                    <Badge variant="destructive">
+                      Sinais de preguiça: {coach.stats.lazinessSignals}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
 
@@ -377,7 +467,7 @@ function ReflectionTab() {
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
           Reflexões recentes
         </h3>
-        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
           {entries === null ? (
             <SkeletonGrid rows={3} />
           ) : entries.length === 0 ? (
@@ -410,18 +500,69 @@ function ReflectionTab() {
 }
 
 /* ============ MÉTRICAS ============ */
+type WeekBar = { week: string; checkins: number };
+type CategorySlice = { name: string; value: number };
+
 function MetricsTab() {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
+  const [weekly, setWeekly] = useState<WeekBar[]>([]);
+  const [byCategory, setByCategory] = useState<CategorySlice[]>([]);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,full_name,level,xp_total,last_access")
-        .order("xp_total", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setProfile((data as Profile | null) ?? null);
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - 7 * 8);
+      const sinceISO = sinceDate.toISOString().slice(0, 10);
+
+      const [{ data: prof }, { data: habits }, { data: logs }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id,full_name,level,xp_total,last_access")
+          .order("xp_total", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from("habits").select("id,category"),
+        supabase.from("habit_logs").select("habit_id,completed_at").gte("completed_at", sinceISO),
+      ]);
+
+      setProfile((prof as Profile | null) ?? null);
+
+      const weeks: { key: string; label: string; start: Date }[] = [];
+      const now = new Date();
+      const day = now.getDay() || 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (day - 1));
+      monday.setHours(0, 0, 0, 0);
+      for (let i = 7; i >= 0; i--) {
+        const start = new Date(monday);
+        start.setDate(monday.getDate() - i * 7);
+        const key = start.toISOString().slice(0, 10);
+        const label = start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+        weeks.push({ key, label, start });
+      }
+      const counts: Record<string, number> = Object.fromEntries(weeks.map((w) => [w.key, 0]));
+      for (const l of logs ?? []) {
+        const d = new Date((l as any).completed_at);
+        d.setHours(0, 0, 0, 0);
+        for (let i = weeks.length - 1; i >= 0; i--) {
+          if (d >= weeks[i].start) {
+            counts[weeks[i].key]++;
+            break;
+          }
+        }
+      }
+      setWeekly(weeks.map((w) => ({ week: w.label, checkins: counts[w.key] })));
+
+      const habitCat: Record<string, string> = {};
+      for (const h of habits ?? []) {
+        habitCat[(h as any).id] = ((h as any).category ?? "sem categoria").toLowerCase();
+      }
+      const catCounts: Record<string, number> = {};
+      for (const l of logs ?? []) {
+        const cat = habitCat[(l as any).habit_id] ?? "sem categoria";
+        catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+      }
+      setByCategory(Object.entries(catCounts).map(([name, value]) => ({ name, value })));
     })();
   }, []);
 
@@ -442,6 +583,15 @@ function MetricsTab() {
         description="Crie um registro em 'profiles' para acompanhar sua evolução."
       />
     );
+
+  const PIE_COLORS = [
+    "oklch(0.7 0.2 270)",
+    "oklch(0.75 0.18 200)",
+    "oklch(0.78 0.18 155)",
+    "oklch(0.75 0.2 30)",
+    "oklch(0.72 0.18 320)",
+    "oklch(0.7 0.15 100)",
+  ];
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -494,20 +644,83 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
-      <StatCard
-        icon={<Zap className="h-5 w-5" />}
-        label="XP Total"
-        value={stats.xp.toLocaleString("pt-BR")}
-      />
-      <StatCard
-        icon={<Flame className="h-5 w-5" />}
-        label="Último acesso"
-        value={
-          profile.last_access
-            ? new Date(profile.last_access).toLocaleDateString("pt-BR")
-            : "—"
-        }
-      />
+      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Flame className="h-4 w-4 text-primary" />
+            Consistência semanal (8 semanas)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-[280px]">
+          {weekly.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem dados ainda.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekly} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
+                <XAxis dataKey="week" stroke="oklch(0.65 0.02 260)" fontSize={11} />
+                <YAxis stroke="oklch(0.65 0.02 260)" fontSize={11} allowDecimals={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "oklch(0.18 0.02 260)",
+                    border: "1px solid oklch(0.3 0.03 260)",
+                    borderRadius: 8,
+                    color: "oklch(0.95 0 0)",
+                  }}
+                  cursor={{ fill: "oklch(0.3 0.03 260 / 0.3)" }}
+                />
+                <Bar dataKey="checkins" fill="oklch(0.7 0.2 270)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="h-4 w-4 text-accent" />
+            Distribuição por categoria
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-[280px]">
+          {byCategory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem check-ins ainda.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={byCategory}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  stroke="oklch(0.15 0.02 260)"
+                >
+                  {byCategory.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <RTooltip
+                  contentStyle={{
+                    background: "oklch(0.18 0.02 260)",
+                    border: "1px solid oklch(0.3 0.03 260)",
+                    borderRadius: 8,
+                    color: "oklch(0.95 0 0)",
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12, color: "oklch(0.75 0.02 260)" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
