@@ -132,13 +132,49 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* AI Life Coach — force dark, neon-on-obsidian aesthetic */
+:root {
+  --background: oklch(0.16 0.02 270);
+  --foreground: oklch(0.97 0.01 250);
+  --card: oklch(0.21 0.025 270);
+  --card-foreground: oklch(0.97 0.01 250);
+  --popover: oklch(0.21 0.025 270);
+  --popover-foreground: oklch(0.97 0.01 250);
+  --primary: oklch(0.78 0.18 155);
+  --primary-foreground: oklch(0.16 0.02 270);
+  --secondary: oklch(0.27 0.03 270);
+  --secondary-foreground: oklch(0.97 0.01 250);
+  --muted: oklch(0.24 0.02 270);
+  --muted-foreground: oklch(0.7 0.03 260);
+  --accent: oklch(0.7 0.2 320);
+  --accent-foreground: oklch(0.16 0.02 270);
+  --destructive: oklch(0.65 0.24 25);
+  --destructive-foreground: oklch(0.97 0.01 250);
+  --border: oklch(0.3 0.03 270);
+  --input: oklch(0.27 0.03 270);
+  --ring: oklch(0.78 0.18 155);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.18 155), oklch(0.7 0.2 200));
+  --gradient-accent: linear-gradient(135deg, oklch(0.7 0.2 320), oklch(0.6 0.22 280));
+  --gradient-bg: radial-gradient(ellipse at top, oklch(0.22 0.05 280) 0%, oklch(0.13 0.02 270) 60%);
+  --shadow-glow: 0 0 40px -8px oklch(0.78 0.18 155 / 0.4);
+  --shadow-card: 0 8px 32px -12px oklch(0 0 0 / 0.6);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   body {
-    background-color: var(--color-background);
+    background: var(--gradient-bg);
+    background-attachment: fixed;
     color: var(--color-foreground);
+    min-height: 100vh;
+    font-feature-settings: "ss01", "cv11";
   }
 }
