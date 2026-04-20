@@ -1,1 +1,4 @@
 project_id = "wnbhvsogbjnjrtmgndoi"
+
+[functions.coach-analyze]
+verify_jwt = false
