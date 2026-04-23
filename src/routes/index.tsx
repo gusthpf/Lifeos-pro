@@ -7,6 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
 import {
   Swords,
@@ -23,6 +33,7 @@ import {
   Terminal,
   Send,
   Save,
+  Plus,
 } from "lucide-react";
 import {
   BarChart,
@@ -219,6 +230,7 @@ function LifeCoachApp() {
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <NocPanel />
+        <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-5 bg-card/60 backdrop-blur border border-border h-12">
             <TabsTrigger value="dojo" className="gap-2">
@@ -1091,6 +1103,228 @@ function NexusTab() {
 }
 
 /* ============ Helpers ============ */
+
+/* ============ MANAGEMENT BAR ============ */
+type ModalKind = "habit" | "goal" | "metric" | null;
+
+async function getCurrentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.id ?? null;
+}
+
+function ManagementBar() {
+  const [open, setOpen] = useState<ModalKind>(null);
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/50 p-3 backdrop-blur">
+      <span className="mr-2 text-xs uppercase tracking-widest text-muted-foreground">
+        Gerenciamento
+      </span>
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("habit")}>
+        <Plus className="h-3.5 w-3.5" /> Novo Hábito
+      </Button>
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("goal")}>
+        <Plus className="h-3.5 w-3.5" /> Nova Estratégia
+      </Button>
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("metric")}>
+        <Plus className="h-3.5 w-3.5" /> Nova Métrica
+      </Button>
+
+      <NewHabitModal open={open === "habit"} onClose={() => setOpen(null)} />
+      <NewGoalModal open={open === "goal"} onClose={() => setOpen(null)} />
+      <NewMetricModal open={open === "metric"} onClose={() => setOpen(null)} />
+    </div>
+  );
+}
+
+function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [xp, setXp] = useState("10");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!title.trim()) return;
+    setSaving(true);
+    const user_id = await getCurrentUserId();
+    const { error } = await supabase.from("habits").insert({
+      title: title.trim(),
+      category: category.trim() || null,
+      xp_reward: Number(xp) || 10,
+      user_id,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao criar hábito", { description: error.message });
+      return;
+    }
+    toast.success("Hábito criado");
+    setTitle(""); setCategory(""); setXp("10");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo Hábito</DialogTitle>
+          <DialogDescription>Adicione um novo hábito ao seu dojo.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="h-title">Título</Label>
+            <Input id="h-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="h-cat">Categoria</Label>
+            <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="h-xp">XP por check-in</Label>
+            <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !title.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [objective, setObjective] = useState("");
+  const [horizon, setHorizon] = useState("");
+  const [status, setStatus] = useState("em_progresso");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!objective.trim()) return;
+    setSaving(true);
+    const user_id = await getCurrentUserId();
+    const { error } = await supabase.from("life_goals").insert({
+      objective: objective.trim(),
+      horizon: horizon.trim() || null,
+      status,
+      user_id,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao criar estratégia", { description: error.message });
+      return;
+    }
+    toast.success("Estratégia criada");
+    setObjective(""); setHorizon(""); setStatus("em_progresso");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova Estratégia</DialogTitle>
+          <DialogDescription>Defina uma meta de vida.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="g-obj">Objetivo</Label>
+            <Textarea id="g-obj" value={objective} onChange={(e) => setObjective(e.target.value)} maxLength={500} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-hor">Horizonte</Label>
+            <Input id="g-hor" value={horizon} onChange={(e) => setHorizon(e.target.value)} placeholder="curto, médio, longo prazo..." maxLength={50} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-st">Status</Label>
+            <select
+              id="g-st"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="em_progresso">Em progresso</option>
+              <option value="concluido">Concluído</option>
+              <option value="pausado">Pausado</option>
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !objective.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewMetricModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [fullName, setFullName] = useState("");
+  const [xp, setXp] = useState("0");
+  const [level, setLevel] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    setSaving(true);
+    const user_id = await getCurrentUserId();
+    if (!user_id) {
+      setSaving(false);
+      toast.error("Sessão necessária", { description: "Faça login para criar métricas." });
+      return;
+    }
+    const { error } = await supabase.from("profiles").upsert({
+      id: user_id,
+      full_name: fullName.trim() || null,
+      xp_total: Number(xp) || 0,
+      level: Number(level) || 1,
+      last_access: new Date().toISOString(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao salvar métrica", { description: error.message });
+      return;
+    }
+    toast.success("Perfil de métricas atualizado");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova Métrica</DialogTitle>
+          <DialogDescription>Inicialize ou atualize seu perfil de progresso.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="p-name">Nome</Label>
+            <Input id="p-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="p-xp">XP total</Label>
+              <Input id="p-xp" type="number" min={0} value={xp} onChange={(e) => setXp(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-lvl">Nível</Label>
+              <Input id="p-lvl" type="number" min={1} value={level} onChange={(e) => setLevel(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SkeletonGrid({ rows = 6 }: { rows?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
