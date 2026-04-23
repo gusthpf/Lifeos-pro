@@ -98,6 +98,7 @@ function LifeCoachApp() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
+        <NocPanel />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-5 bg-card/60 backdrop-blur border border-border h-12">
             <TabsTrigger value="dojo" className="gap-2">
