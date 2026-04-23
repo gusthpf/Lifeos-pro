@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -208,6 +209,15 @@ function NocPanel() {
 }
 
 function LifeCoachApp() {
+  const { profile, username, loading, user } = useAuth();
+  const displayName = profile?.full_name?.trim() || username;
+  const greeting =
+    loading || !user
+      ? "Bem-vindo!"
+      : displayName
+        ? `Olá, ${displayName}`
+        : "Bem-vindo!";
+
   return (
     <div className="min-h-screen text-foreground">
       <Toaster theme="dark" position="top-center" richColors />
@@ -225,6 +235,21 @@ function LifeCoachApp() {
               Treine. Planeje. Reflita. Evolua.
             </p>
           </div>
+        </div>
+        <div
+          className="mt-6 rounded-lg border border-border/60 bg-card/60 px-5 py-4 backdrop-blur"
+          style={{ boxShadow: "var(--shadow-elegant, 0 4px 20px -8px oklch(0 0 0 / 0.3))" }}
+          aria-live="polite"
+        >
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+            Sessão
+          </p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight">
+            {greeting}
+            {loading && (
+              <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </p>
         </div>
       </header>
 
