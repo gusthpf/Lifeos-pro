@@ -20,6 +20,9 @@ import {
   Zap,
   Brain,
   AlertTriangle,
+  Terminal,
+  Send,
+  Save,
 } from "lucide-react";
 import {
   BarChart,
@@ -96,7 +99,7 @@ function LifeCoachApp() {
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-card/60 backdrop-blur border border-border h-12">
+          <TabsList className="grid w-full grid-cols-5 bg-card/60 backdrop-blur border border-border h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -108,6 +111,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="metricas" className="gap-2">
               <Trophy className="h-4 w-4" /> Métricas
+            </TabsTrigger>
+            <TabsTrigger value="nexus" className="gap-2">
+              <Terminal className="h-4 w-4" /> Nexus
             </TabsTrigger>
           </TabsList>
 
@@ -122,6 +128,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="metricas" className="mt-6">
             <MetricsTab />
+          </TabsContent>
+          <TabsContent value="nexus" className="mt-6">
+            <NexusTab />
           </TabsContent>
         </Tabs>
       </main>
@@ -743,6 +752,216 @@ function StatCard({
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
           <p className="mt-1 text-2xl font-semibold">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============ NEXUS (Chat-Terminal) ============ */
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+function NexusTab() {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [savedIdxs, setSavedIdxs] = useState<Set<number>>(new Set());
+
+  async function send() {
+    const text = input.trim();
+    if (!text || sending) return;
+    const next = [...messages, { role: "user" as const, content: text }];
+    setMessages(next);
+    setInput("");
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("nexus-chat", {
+        body: { messages: next },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const reply = (data as any)?.message ?? "";
+      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+    } catch (e: any) {
+      toast.error("Nexus offline", { description: e?.message ?? "Tente novamente." });
+      setMessages((m) => m.slice(0, -1));
+      setInput(text);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function saveToWiki(idx: number, content: string) {
+    setSavingIdx(idx);
+    // Título: 1ª linha não-vazia, máx 80 chars
+    const firstLine =
+      content
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l && !l.startsWith("```")) ?? "Solução técnica";
+    const titulo = firstLine.slice(0, 80);
+
+    // Tags = linguagens dos blocos ```lang
+    const tags = Array.from(
+      new Set(
+        Array.from(content.matchAll(/```([a-zA-Z0-9_+-]+)/g)).map((m) =>
+          m[1].toLowerCase(),
+        ),
+      ),
+    );
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const user_id = userRes?.user?.id ?? null;
+
+    const { error } = await supabase
+      .from("kb_tecnica")
+      .insert({ titulo, solucao: content, tags, user_id });
+
+    if (error) {
+      setSavingIdx(null);
+      toast.error("Falha ao salvar na Wiki", { description: error.message });
+      return;
+    }
+
+    if (user_id) {
+      const { error: rpcErr } = await supabase.rpc("adicionar_xp", {
+        user_id_input: user_id,
+        xp_ganho: 25,
+      });
+      if (rpcErr) console.warn("XP RPC error:", rpcErr.message);
+    }
+
+    setSavedIdxs((s) => new Set(s).add(idx));
+    setSavingIdx(null);
+    toast.success("Solução salva na Wiki", { description: "+25 XP de Conhecimento" });
+  }
+
+  function renderContent(text: string) {
+    // Divide em segmentos: texto e blocos ```lang ... ```
+    const parts: { type: "text" | "code"; lang?: string; content: string }[] = [];
+    const re = /```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: text.slice(last, m.index) });
+      parts.push({ type: "code", lang: m[1] || "txt", content: m[2].replace(/\n$/, "") });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push({ type: "text", content: text.slice(last) });
+    if (parts.length === 0) parts.push({ type: "text", content: text });
+
+    return parts.map((p, i) =>
+      p.type === "code" ? (
+        <pre
+          key={i}
+          className="my-2 overflow-x-auto rounded-md border border-primary/30 bg-black/60 p-3 text-xs leading-relaxed"
+        >
+          <div className="mb-1 text-[10px] uppercase tracking-widest text-primary/70">
+            {p.lang}
+          </div>
+          <code className="text-primary/90">{p.content}</code>
+        </pre>
+      ) : (
+        <span key={i} className="whitespace-pre-wrap">
+          {p.content}
+        </span>
+      ),
+    );
+  }
+
+  return (
+    <Card
+      className="border-primary/30 bg-black/70 font-mono"
+      style={{ boxShadow: "var(--shadow-glow)" }}
+    >
+      <CardHeader className="border-b border-primary/20">
+        <CardTitle className="flex items-center gap-2 text-base text-primary">
+          <Terminal className="h-4 w-4" />
+          nexus@coach:~$
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="h-[480px] overflow-y-auto p-4 text-sm">
+          {messages.length === 0 ? (
+            <div className="text-muted-foreground">
+              <p>// Pronto. Mande dúvida técnica ou desabafo.</p>
+              <p className="mt-1 opacity-60">
+                // Respostas com bloco de código podem ser salvas na Wiki (+25 XP).
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((m, i) => {
+                const isUser = m.role === "user";
+                const hasCode = !isUser && /```[\s\S]+?```/.test(m.content);
+                return (
+                  <div key={i} className="space-y-1">
+                    <div
+                      className={`text-[10px] uppercase tracking-widest ${
+                        isUser ? "text-accent" : "text-primary"
+                      }`}
+                    >
+                      {isUser ? "USER" : "NEXUS"}:
+                    </div>
+                    <div className="text-foreground/90">{renderContent(m.content)}</div>
+                    {hasCode && (
+                      <div className="pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1 border-primary/40 text-xs"
+                          disabled={savingIdx === i || savedIdxs.has(i)}
+                          onClick={() => saveToWiki(i, m.content)}
+                        >
+                          {savingIdx === i ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : savedIdxs.has(i) ? (
+                            <>
+                              <Check className="h-3 w-3" /> Salvo na Wiki
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-3 w-3" /> Salvar na Wiki (+25 XP)
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {sending && (
+                <div className="flex items-center gap-2 text-xs text-primary/70">
+                  <Loader2 className="h-3 w-3 animate-spin" /> nexus pensando...
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 border-t border-primary/20 bg-black/80 p-3">
+          <span className="text-primary">$</span>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="Dúvida técnica ou desabafo..."
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+            disabled={sending}
+          />
+          <Button
+            size="sm"
+            onClick={send}
+            disabled={sending || !input.trim()}
+            className="gap-1"
+          >
+            <Send className="h-3 w-3" /> Enviar
+          </Button>
         </div>
       </CardContent>
     </Card>
