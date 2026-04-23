@@ -76,6 +76,126 @@ type Profile = {
 
 const XP_PER_LEVEL = 500;
 
+/* ============ NOC DASHBOARD ============ */
+function getBahiaDateISO(): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bahia",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date());
+}
+
+function NocPanel() {
+  const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
+  const [lastCheck, setLastCheck] = useState<string>("");
+  const [logCount, setLogCount] = useState<number>(0);
+  const today = getBahiaDateISO();
+
+  async function probe() {
+    setStatus("loading");
+    const { data, error } = await supabase
+      .from("habit_logs")
+      .select("id")
+      .eq("completed_at", today);
+    const now = new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour12: false });
+    setLastCheck(now);
+    if (error) {
+      setStatus("offline");
+      setLogCount(0);
+      return;
+    }
+    const count = data?.length ?? 0;
+    setLogCount(count);
+    setStatus(count > 0 ? "online" : "offline");
+  }
+
+  useEffect(() => {
+    probe();
+    const id = setInterval(probe, 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today]);
+
+  const isOnline = status === "online";
+  const isOffline = status === "offline";
+  const greenBorder = "oklch(0.78 0.18 155)";
+  const redBorder = "oklch(0.62 0.24 25)";
+
+  return (
+    <div
+      className={`relative mb-6 overflow-hidden rounded-md border-2 font-mono text-sm noc-scanline ${
+        isOffline ? "noc-blink" : ""
+      }`}
+      style={{
+        borderColor: isOnline ? greenBorder : isOffline ? redBorder : "var(--border)",
+        background: isOnline
+          ? "linear-gradient(180deg, oklch(0.22 0.06 155 / 0.65), oklch(0.14 0.04 155 / 0.85))"
+          : isOffline
+            ? "linear-gradient(180deg, oklch(0.24 0.10 25 / 0.7), oklch(0.14 0.06 25 / 0.9))"
+            : "var(--card)",
+        boxShadow: isOnline
+          ? `0 0 24px -4px ${greenBorder}`
+          : isOffline
+            ? `0 0 28px -4px ${redBorder}`
+            : "none",
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        className="flex items-center justify-between border-b px-3 py-1.5 text-[11px] uppercase tracking-widest"
+        style={{
+          borderColor: isOnline ? greenBorder : redBorder,
+          color: isOnline ? greenBorder : redBorder,
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{
+              background: isOnline ? greenBorder : redBorder,
+              boxShadow: `0 0 8px ${isOnline ? greenBorder : redBorder}`,
+            }}
+          />
+          NOC // DISCIPLINE MONITOR
+        </span>
+        <span className="opacity-80">TZ: America/Bahia · {today}</span>
+      </div>
+
+      <div className="px-4 py-4">
+        {status === "loading" ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>$ probing habit_logs...</span>
+          </div>
+        ) : isOnline ? (
+          <div className="space-y-1" style={{ color: greenBorder }}>
+            <div className="text-xs opacity-80">$ check --date {today}</div>
+            <div className="text-lg font-bold tracking-wider sm:text-xl">
+              ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
+            </div>
+            <div className="text-xs opacity-80">
+              {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje · last_probe={lastCheck}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1" style={{ color: redBorder }}>
+            <div className="text-xs opacity-80">$ check --date {today}</div>
+            <div className="text-lg font-bold tracking-wider sm:text-xl">
+              ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
+            </div>
+            <div className="text-xs opacity-80">
+              0 logs registrados · last_probe={lastCheck} · auto_retry=60s
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LifeCoachApp() {
   return (
     <div className="min-h-screen text-foreground">
@@ -139,130 +259,6 @@ function LifeCoachApp() {
   );
 }
 
-/* ============ NOC DASHBOARD ============ */
-function getBahiaDateISO(): string {
-  // America/Bahia is UTC-3, no DST. Use Intl to be safe.
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bahia",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(new Date()); // YYYY-MM-DD
-}
-
-function NocPanel() {
-  const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
-  const [lastCheck, setLastCheck] = useState<string>("");
-  const [logCount, setLogCount] = useState<number>(0);
-  const today = getBahiaDateISO();
-
-  async function probe() {
-    setStatus("loading");
-    const { data, error } = await supabase
-      .from("habit_logs")
-      .select("id", { count: "exact" })
-      .eq("completed_at", today);
-    const now = new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour12: false });
-    setLastCheck(now);
-    if (error) {
-      setStatus("offline");
-      setLogCount(0);
-      return;
-    }
-    const count = data?.length ?? 0;
-    setLogCount(count);
-    setStatus(count > 0 ? "online" : "offline");
-  }
-
-  useEffect(() => {
-    probe();
-    const id = setInterval(probe, 60_000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today]);
-
-  const isOnline = status === "online";
-  const isOffline = status === "offline";
-
-  // Terminal palette via inline tokens (kept local to NOC aesthetic)
-  const greenBorder = "oklch(0.78 0.18 155)";
-  const redBorder = "oklch(0.62 0.24 25)";
-
-  return (
-    <div
-      className={`relative mb-6 overflow-hidden rounded-md border-2 font-mono text-sm noc-scanline ${
-        isOffline ? "noc-blink" : ""
-      }`}
-      style={{
-        borderColor: isOnline ? greenBorder : isOffline ? redBorder : "var(--border)",
-        background: isOnline
-          ? "linear-gradient(180deg, oklch(0.22 0.06 155 / 0.65), oklch(0.14 0.04 155 / 0.85))"
-          : isOffline
-            ? "linear-gradient(180deg, oklch(0.24 0.10 25 / 0.7), oklch(0.14 0.06 25 / 0.9))"
-            : "var(--card)",
-        boxShadow: isOnline
-          ? `0 0 24px -4px ${greenBorder}`
-          : isOffline
-            ? `0 0 28px -4px ${redBorder}`
-            : "none",
-      }}
-      role="status"
-      aria-live="polite"
-    >
-      {/* Top bar */}
-      <div
-        className="flex items-center justify-between border-b px-3 py-1.5 text-[11px] uppercase tracking-widest"
-        style={{
-          borderColor: isOnline ? greenBorder : redBorder,
-          color: isOnline ? greenBorder : redBorder,
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{
-              background: isOnline ? greenBorder : redBorder,
-              boxShadow: `0 0 8px ${isOnline ? greenBorder : redBorder}`,
-            }}
-          />
-          NOC // DISCIPLINE MONITOR
-        </span>
-        <span className="opacity-80">TZ: America/Bahia · {today}</span>
-      </div>
-
-      {/* Body */}
-      <div className="px-4 py-4">
-        {status === "loading" ? (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>$ probing habit_logs...</span>
-          </div>
-        ) : isOnline ? (
-          <div className="space-y-1" style={{ color: greenBorder }}>
-            <div className="text-xs opacity-80">$ check --date {today}</div>
-            <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
-            </div>
-            <div className="text-xs opacity-80">
-              {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje · last_probe={lastCheck}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-1" style={{ color: redBorder }}>
-            <div className="text-xs opacity-80">$ check --date {today}</div>
-            <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
-            </div>
-            <div className="text-xs opacity-80">
-              0 logs registrados · last_probe={lastCheck} · auto_retry=60s
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /* ============ DOJO ============ */
 function DojoTab() {
