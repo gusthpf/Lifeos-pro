@@ -178,3 +178,20 @@
     font-feature-settings: "ss01", "cv11";
   }
 }
+
+@keyframes noc-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@keyframes noc-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.noc-blink { animation: noc-blink 1s steps(2, end) infinite; }
+.noc-scanline::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent, oklch(1 0 0 / 0.06), transparent);
+  animation: noc-scan 3s linear infinite;
+  pointer-events: none;
+}

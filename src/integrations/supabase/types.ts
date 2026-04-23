@@ -14,27 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      diario: {
-        Row: {
-          conteudo: string | null
-          criado_em: string | null
-          id: string
-          sentimento: string | null
-        }
-        Insert: {
-          conteudo?: string | null
-          criado_em?: string | null
-          id?: string
-          sentimento?: string | null
-        }
-        Update: {
-          conteudo?: string | null
-          criado_em?: string | null
-          id?: string
-          sentimento?: string | null
-        }
-        Relationships: []
-      }
       habit_logs: {
         Row: {
           completed_at: string | null
@@ -63,27 +42,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      habitos: {
-        Row: {
-          categoria: string | null
-          id: string
-          nome: string
-          xp_valor: number | null
-        }
-        Insert: {
-          categoria?: string | null
-          id?: string
-          nome: string
-          xp_valor?: number | null
-        }
-        Update: {
-          categoria?: string | null
-          id?: string
-          nome?: string
-          xp_valor?: number | null
-        }
-        Relationships: []
       }
       habits: {
         Row: {
@@ -187,53 +145,6 @@ export type Database = {
           objective?: string
           status?: string | null
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      logs_habitos: {
-        Row: {
-          concluido: boolean | null
-          data: string | null
-          habito_id: string | null
-          id: string
-        }
-        Insert: {
-          concluido?: boolean | null
-          data?: string | null
-          habito_id?: string | null
-          id?: string
-        }
-        Update: {
-          concluido?: boolean | null
-          data?: string | null
-          habito_id?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "logs_habitos_habito_id_fkey"
-            columns: ["habito_id"]
-            isOneToOne: false
-            referencedRelation: "habitos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      perfil: {
-        Row: {
-          id: string
-          nivel: number | null
-          pontos_totais: number | null
-        }
-        Insert: {
-          id?: string
-          nivel?: number | null
-          pontos_totais?: number | null
-        }
-        Update: {
-          id?: string
-          nivel?: number | null
-          pontos_totais?: number | null
         }
         Relationships: []
       }
