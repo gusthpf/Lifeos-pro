@@ -20,6 +20,9 @@ import {
   Zap,
   Brain,
   AlertTriangle,
+  Terminal,
+  Send,
+  Save,
 } from "lucide-react";
 import {
   BarChart,
@@ -96,7 +99,7 @@ function LifeCoachApp() {
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-card/60 backdrop-blur border border-border h-12">
+          <TabsList className="grid w-full grid-cols-5 bg-card/60 backdrop-blur border border-border h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -108,6 +111,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="metricas" className="gap-2">
               <Trophy className="h-4 w-4" /> Métricas
+            </TabsTrigger>
+            <TabsTrigger value="nexus" className="gap-2">
+              <Terminal className="h-4 w-4" /> Nexus
             </TabsTrigger>
           </TabsList>
 
@@ -122,6 +128,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="metricas" className="mt-6">
             <MetricsTab />
+          </TabsContent>
+          <TabsContent value="nexus" className="mt-6">
+            <NexusTab />
           </TabsContent>
         </Tabs>
       </main>
