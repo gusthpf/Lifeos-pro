@@ -209,7 +209,7 @@ function NocPanel() {
 }
 
 function LifeCoachApp() {
-  const { profile, username, loading, user } = useAuth();
+  const { profile, username, loading, user } = AuthCtx.useAuth();
   const displayName = profile?.full_name?.trim() || username;
   const greeting =
     loading || !user
