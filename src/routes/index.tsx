@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import * as AuthCtx from "@/contexts/AuthContext";
@@ -209,7 +209,8 @@ function NocPanel() {
 }
 
 function LifeCoachApp() {
-  const { profile, username, loading, user } = AuthCtx.useAuth();
+  const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
+  const navigate = useNavigate();
   const displayName = profile?.full_name?.trim() || username;
   const greeting =
     loading || !user
@@ -218,23 +219,44 @@ function LifeCoachApp() {
         ? `Olá, ${displayName}`
         : "Bem-vindo!";
 
+  // Redirect unauthenticated users to /auth once we know there's no session
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate({ to: "/auth" });
+    }
+  }, [loading, user, navigate]);
+
   return (
     <div className="min-h-screen text-foreground">
       <Toaster theme="dark" position="top-center" richColors />
       <header className="mx-auto max-w-6xl px-6 pt-10 pb-6">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-xl"
-            style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
-          >
-            <Sparkles className="h-6 w-6 text-primary-foreground" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl"
+              style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
+            >
+              <Sparkles className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">AI Life Coach</h1>
+              <p className="text-sm text-muted-foreground">
+                Treine. Planeje. Reflita. Evolua.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">AI Life Coach</h1>
-            <p className="text-sm text-muted-foreground">
-              Treine. Planeje. Reflita. Evolua.
-            </p>
-          </div>
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await signOut();
+                navigate({ to: "/auth" });
+              }}
+            >
+              Sair
+            </Button>
+          )}
         </div>
         <div
           className="mt-6 rounded-lg border border-border/60 bg-card/60 px-5 py-4 backdrop-blur"
