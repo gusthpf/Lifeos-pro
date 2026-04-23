@@ -136,6 +136,33 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_tecnica: {
+        Row: {
+          criado_em: string | null
+          id: string
+          solucao: string
+          tags: string[] | null
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          id?: string
+          solucao: string
+          tags?: string[] | null
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          id?: string
+          solucao?: string
+          tags?: string[] | null
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       life_goals: {
         Row: {
           created_at: string | null
@@ -239,7 +266,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      adicionar_xp: {
+        Args: { user_id_input: string; xp_ganho: number }
+        Returns: undefined
+      }
+      run_read_only_query: { Args: { query_text: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
