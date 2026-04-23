@@ -7,6 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
 import {
   Swords,
@@ -23,6 +33,7 @@ import {
   Terminal,
   Send,
   Save,
+  Plus,
 } from "lucide-react";
 import {
   BarChart,
