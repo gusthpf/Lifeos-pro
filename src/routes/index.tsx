@@ -108,6 +108,8 @@ function NocPanel() {
   const [lastCheck, setLastCheck] = useState<string>("");
   const [logCount, setLogCount] = useState<number>(0);
   const [registering, setRegistering] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [trainingType, setTrainingType] = useState("");
   const today = getBahiaDateISO();
 
   async function probe() {
