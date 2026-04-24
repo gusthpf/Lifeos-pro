@@ -385,6 +385,7 @@ function DojoTab() {
   const [habits, setHabits] = useState<Habit[] | null>(null);
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
