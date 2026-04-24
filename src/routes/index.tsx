@@ -935,11 +935,13 @@ function ReflectionTab() {
 /* ============ MÉTRICAS ============ */
 type WeekBar = { week: string; checkins: number };
 type CategorySlice = { name: string; value: number };
+type VolumeBar = { period: string; total: number };
 
 function MetricsTab() {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [weekly, setWeekly] = useState<WeekBar[]>([]);
   const [byCategory, setByCategory] = useState<CategorySlice[]>([]);
+  const [trainingVolume, setTrainingVolume] = useState<VolumeBar[]>([]);
 
   useEffect(() => {
     (async () => {
