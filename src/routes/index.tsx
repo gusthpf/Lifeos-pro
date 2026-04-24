@@ -35,6 +35,9 @@ import {
   Send,
   Save,
   Plus,
+  Trash2,
+  CheckCircle2,
+  Dumbbell,
 } from "lucide-react";
 import {
   BarChart,
@@ -100,9 +103,11 @@ function getBahiaDateISO(): string {
 }
 
 function NocPanel() {
+  const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
   const [lastCheck, setLastCheck] = useState<string>("");
   const [logCount, setLogCount] = useState<number>(0);
+  const [registering, setRegistering] = useState(false);
   const today = getBahiaDateISO();
 
   async function probe() {
@@ -121,6 +126,41 @@ function NocPanel() {
     const count = data?.length ?? 0;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
+  }
+
+  async function registerTraining() {
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
+      return;
+    }
+    setRegistering(true);
+    // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
+    const { data: habits } = await supabase
+      .from("habits")
+      .select("id,title,category");
+    const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
+    const match =
+      (habits ?? []).find(
+        (h: any) =>
+          trainingKeyword.test(h.category ?? "") || trainingKeyword.test(h.title ?? ""),
+      ) ?? (habits ?? [])[0];
+
+    const { error } = await supabase
+      .from("habit_logs")
+      .insert({
+        user_id: user.id,
+        completed_at: today,
+        habit_id: match?.id ?? null,
+      });
+    setRegistering(false);
+    if (error) {
+      toast.error("Falha ao registrar treino", { description: error.message });
+      return;
+    }
+    toast.success("Treino registrado", {
+      description: match ? `"${match.title}" marcado como concluído.` : "Log de treino criado.",
+    });
+    await probe();
   }
 
   useEffect(() => {
@@ -193,13 +233,33 @@ function NocPanel() {
             </div>
           </div>
         ) : (
-          <div className="space-y-1" style={{ color: redBorder }}>
+          <div className="space-y-2" style={{ color: redBorder }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
               ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
             </div>
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
+            </div>
+            <div className="pt-2">
+              <Button
+                size="sm"
+                onClick={registerTraining}
+                disabled={registering || !user}
+                className="gap-2 font-mono uppercase tracking-wider"
+                style={{
+                  background: redBorder,
+                  color: "oklch(0.12 0.02 25)",
+                  border: `1px solid ${redBorder}`,
+                }}
+              >
+                {registering ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Dumbbell className="h-4 w-4" />
+                )}
+                Registrar Treino
+              </Button>
             </div>
           </div>
         )}
@@ -325,6 +385,7 @@ function DojoTab() {
   const [habits, setHabits] = useState<Habit[] | null>(null);
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -358,6 +419,24 @@ function DojoTab() {
     toast.success(`+${habit.xp_reward ?? 10} XP`, {
       description: `"${habit.title}" concluído!`,
     });
+  }
+
+  async function deleteHabit(habit: Habit) {
+    if (!confirm(`Excluir o hábito "${habit.title}"? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(habit.id);
+    const { error } = await supabase.from("habits").delete().eq("id", habit.id);
+    setDeleting(null);
+    if (error) {
+      toast.error("Falha ao excluir", { description: error.message });
+      return;
+    }
+    setHabits((curr) => (curr ?? []).filter((h) => h.id !== habit.id));
+    setCompletedToday((s) => {
+      const n = new Set(s);
+      n.delete(habit.id);
+      return n;
+    });
+    toast.success("Hábito removido", { description: `"${habit.title}" excluído do dojo.` });
   }
 
   if (habits === null) return <SkeletonGrid />;
@@ -398,28 +477,45 @@ function DojoTab() {
               )}
             </CardHeader>
             <CardContent>
-              <Button
-                onClick={() => checkIn(habit)}
-                disabled={done || isPending}
-                className="w-full"
-                style={
-                  done
-                    ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
-                    : undefined
-                }
-              >
-                {isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : done ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" /> Concluído hoje
-                  </>
-                ) : (
-                  <>
-                    <Flame className="mr-2 h-4 w-4" /> Check-in
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => checkIn(habit)}
+                  disabled={done || isPending}
+                  className="flex-1"
+                  style={
+                    done
+                      ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
+                      : undefined
+                  }
+                >
+                  {isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : done ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Concluído hoje
+                    </>
+                  ) : (
+                    <>
+                      <Flame className="mr-2 h-4 w-4" /> Check-in
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => deleteHabit(habit)}
+                  disabled={deleting === habit.id}
+                  aria-label={`Excluir ${habit.title}`}
+                  title="Excluir hábito"
+                  className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  {deleting === habit.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );
@@ -431,6 +527,7 @@ function DojoTab() {
 /* ============ ESTRATÉGIA ============ */
 function StrategyTab() {
   const [goals, setGoals] = useState<Goal[] | null>(null);
+  const [busy, setBusy] = useState<{ id: string; action: "complete" | "delete" } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -441,6 +538,37 @@ function StrategyTab() {
       setGoals((data ?? []) as Goal[]);
     })();
   }, []);
+
+  async function completeGoal(g: Goal) {
+    if (g.status === "concluido") return;
+    setBusy({ id: g.id, action: "complete" });
+    const { error } = await supabase
+      .from("life_goals")
+      .update({ status: "concluido" })
+      .eq("id", g.id);
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao concluir", { description: error.message });
+      return;
+    }
+    setGoals((curr) =>
+      (curr ?? []).map((x) => (x.id === g.id ? { ...x, status: "concluido" } : x)),
+    );
+    toast.success("Meta concluída", { description: `"${g.objective}" finalizada.` });
+  }
+
+  async function deleteGoal(g: Goal) {
+    if (!confirm(`Excluir a meta "${g.objective}"? Esta ação não pode ser desfeita.`)) return;
+    setBusy({ id: g.id, action: "delete" });
+    const { error } = await supabase.from("life_goals").delete().eq("id", g.id);
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao excluir", { description: error.message });
+      return;
+    }
+    setGoals((curr) => (curr ?? []).filter((x) => x.id !== g.id));
+    toast.success("Meta removida");
+  }
 
   if (goals === null) return <SkeletonGrid />;
   if (goals.length === 0)
@@ -460,32 +588,76 @@ function StrategyTab() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {goals.map((g) => (
-        <Card
-          key={g.id}
-          className="group relative overflow-hidden border-border bg-card/70 backdrop-blur"
-          style={{ boxShadow: "var(--shadow-card)" }}
-        >
-          <div
-            className="absolute inset-x-0 top-0 h-1"
-            style={{ background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso }}
-          />
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <CardTitle className="text-lg leading-snug">{g.objective}</CardTitle>
-              <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2">
-            {g.horizon && (
-              <Badge variant="outline" className="border-accent/40 text-accent">
-                {g.horizon}
-              </Badge>
-            )}
-            <Badge variant="secondary">{(g.status ?? "em_progresso").replace("_", " ")}</Badge>
-          </CardContent>
-        </Card>
-      ))}
+      {goals.map((g) => {
+        const done = g.status === "concluido";
+        const isCompleting = busy?.id === g.id && busy.action === "complete";
+        const isDeleting = busy?.id === g.id && busy.action === "delete";
+        return (
+          <Card
+            key={g.id}
+            className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
+              done ? "opacity-70" : ""
+            }`}
+            style={{ boxShadow: "var(--shadow-card)" }}
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-1"
+              style={{ background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso }}
+            />
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle
+                  className={`text-lg leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
+                >
+                  {g.objective}
+                </CardTitle>
+                <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {g.horizon && (
+                  <Badge variant="outline" className="border-accent/40 text-accent">
+                    {g.horizon}
+                  </Badge>
+                )}
+                <Badge variant="secondary">{(g.status ?? "em_progresso").replace("_", " ")}</Badge>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant={done ? "secondary" : "default"}
+                  onClick={() => completeGoal(g)}
+                  disabled={done || isCompleting}
+                  className="flex-1 gap-2"
+                >
+                  {isCompleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  {done ? "Concluída" : "Concluir"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => deleteGoal(g)}
+                  disabled={isDeleting}
+                  className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={`Excluir ${g.objective}`}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Excluir
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
