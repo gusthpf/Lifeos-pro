@@ -1152,6 +1152,44 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
+      <Card
+        className="md:col-span-2 border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Dumbbell className="h-4 w-4 text-primary" />
+            Total de Treinos Realizados (Volumetria)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-[280px]">
+          {trainingVolume.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum treino registrado ainda. Use o botão "Registrar Treino" no monitor NOC.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trainingVolume} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
+                <XAxis dataKey="period" stroke="oklch(0.65 0.02 260)" fontSize={11} />
+                <YAxis stroke="oklch(0.65 0.02 260)" fontSize={11} allowDecimals={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "oklch(0.18 0.02 260)",
+                    border: "1px solid oklch(0.3 0.03 260)",
+                    borderRadius: 8,
+                    color: "oklch(0.95 0 0)",
+                  }}
+                  cursor={{ fill: "oklch(0.3 0.03 260 / 0.3)" }}
+                  formatter={(v: any) => [`${v} treinos`, "Acumulado"]}
+                />
+                <Bar dataKey="total" fill="oklch(0.78 0.18 155)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
