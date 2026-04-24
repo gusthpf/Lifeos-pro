@@ -103,9 +103,11 @@ function getBahiaDateISO(): string {
 }
 
 function NocPanel() {
+  const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
   const [lastCheck, setLastCheck] = useState<string>("");
   const [logCount, setLogCount] = useState<number>(0);
+  const [registering, setRegistering] = useState(false);
   const today = getBahiaDateISO();
 
   async function probe() {
@@ -124,6 +126,41 @@ function NocPanel() {
     const count = data?.length ?? 0;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
+  }
+
+  async function registerTraining() {
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
+      return;
+    }
+    setRegistering(true);
+    // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
+    const { data: habits } = await supabase
+      .from("habits")
+      .select("id,title,category");
+    const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
+    const match =
+      (habits ?? []).find(
+        (h: any) =>
+          trainingKeyword.test(h.category ?? "") || trainingKeyword.test(h.title ?? ""),
+      ) ?? (habits ?? [])[0];
+
+    const { error } = await supabase
+      .from("habit_logs")
+      .insert({
+        user_id: user.id,
+        completed_at: today,
+        habit_id: match?.id ?? null,
+      });
+    setRegistering(false);
+    if (error) {
+      toast.error("Falha ao registrar treino", { description: error.message });
+      return;
+    }
+    toast.success("Treino registrado", {
+      description: match ? `"${match.title}" marcado como concluído.` : "Log de treino criado.",
+    });
+    await probe();
   }
 
   useEffect(() => {
