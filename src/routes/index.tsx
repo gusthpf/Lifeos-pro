@@ -321,6 +321,7 @@ function LifeCoachApp() {
 
 /* ============ DOJO ============ */
 function DojoTab() {
+  const { user } = AuthCtx.useAuth();
   const [habits, setHabits] = useState<Habit[] | null>(null);
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<string | null>(null);
@@ -340,10 +341,14 @@ function DojoTab() {
 
   async function checkIn(habit: Habit) {
     if (completedToday.has(habit.id)) return;
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para registrar check-in." });
+      return;
+    }
     setPending(habit.id);
     const { error } = await supabase
       .from("habit_logs")
-      .insert({ habit_id: habit.id, completed_at: today });
+      .insert({ habit_id: habit.id, completed_at: today, user_id: user.id });
     setPending(null);
     if (error) {
       toast.error("Falha no check-in", { description: error.message });
@@ -502,6 +507,7 @@ type CoachResponse = {
 };
 
 function ReflectionTab() {
+  const { user } = AuthCtx.useAuth();
   const [content, setContent] = useState("");
   const [sentiment, setSentiment] = useState<string>("neutro");
   const [saving, setSaving] = useState(false);
@@ -524,8 +530,14 @@ function ReflectionTab() {
 
   async function save() {
     if (!content.trim()) return;
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para salvar reflexões." });
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase.from("journal").insert({ content, sentiment });
+    const { error } = await supabase
+      .from("journal")
+      .insert({ content, sentiment, user_id: user.id });
     setSaving(false);
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
