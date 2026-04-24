@@ -998,6 +998,47 @@ function MetricsTab() {
         catCounts[cat] = (catCounts[cat] ?? 0) + 1;
       }
       setByCategory(Object.entries(catCounts).map(([name, value]) => ({ name, value })));
+
+      // ----- Volumetria acumulada de treinos (todos os tempos) -----
+      const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
+      const trainingHabitIds = new Set(
+        (habits ?? [])
+          .filter((h: any) => trainingKeyword.test(h.category ?? ""))
+          .map((h: any) => h.id as string),
+      );
+      const { data: allTrainingLogs } = await supabase
+        .from("habit_logs")
+        .select("habit_id,completed_at,notes")
+        .order("completed_at", { ascending: true });
+
+      const trainingLogs = (allTrainingLogs ?? []).filter((l: any) => {
+        if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
+        // Fallback: NOC inserts may have null habit_id but notes describe the training
+        if (!l.habit_id && typeof l.notes === "string" && l.notes.trim().length > 0) return true;
+        return false;
+      });
+
+      const monthCounts: Record<string, number> = {};
+      for (const l of trainingLogs) {
+        const raw = (l as any).completed_at as string | null;
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) continue;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        monthCounts[key] = (monthCounts[key] ?? 0) + 1;
+      }
+      const sortedKeys = Object.keys(monthCounts).sort();
+      let acc = 0;
+      const volume: VolumeBar[] = sortedKeys.map((k) => {
+        acc += monthCounts[k];
+        const [y, m] = k.split("-");
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", {
+          month: "short",
+          year: "2-digit",
+        });
+        return { period: label, total: acc };
+      });
+      setTrainingVolume(volume);
     })();
   }, []);
 
