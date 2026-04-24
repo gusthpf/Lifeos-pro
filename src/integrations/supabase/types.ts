@@ -19,18 +19,21 @@ export type Database = {
           completed_at: string | null
           habit_id: string | null
           id: string
+          notes: string | null
           user_id: string | null
         }
         Insert: {
           completed_at?: string | null
           habit_id?: string | null
           id?: string
+          notes?: string | null
           user_id?: string | null
         }
         Update: {
           completed_at?: string | null
           habit_id?: string | null
           id?: string
+          notes?: string | null
           user_id?: string | null
         }
         Relationships: [

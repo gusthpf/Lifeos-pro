@@ -108,6 +108,8 @@ function NocPanel() {
   const [lastCheck, setLastCheck] = useState<string>("");
   const [logCount, setLogCount] = useState<number>(0);
   const [registering, setRegistering] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [trainingType, setTrainingType] = useState("");
   const today = getBahiaDateISO();
 
   async function probe() {
@@ -133,6 +135,11 @@ function NocPanel() {
       toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
       return;
     }
+    const notes = trainingType.trim();
+    if (!notes) {
+      toast.error("Informe o tipo de treino");
+      return;
+    }
     setRegistering(true);
     // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
     const { data: habits } = await supabase
@@ -151,6 +158,7 @@ function NocPanel() {
         user_id: user.id,
         completed_at: today,
         habit_id: match?.id ?? null,
+        notes,
       });
     setRegistering(false);
     if (error) {
@@ -158,8 +166,10 @@ function NocPanel() {
       return;
     }
     toast.success("Treino registrado", {
-      description: match ? `"${match.title}" marcado como concluído.` : "Log de treino criado.",
+      description: `"${notes}" salvo no log de hoje.`,
     });
+    setModalOpen(false);
+    setTrainingType("");
     await probe();
   }
 
@@ -244,8 +254,8 @@ function NocPanel() {
             <div className="pt-2">
               <Button
                 size="sm"
-                onClick={registerTraining}
-                disabled={registering || !user}
+                onClick={() => setModalOpen(true)}
+                disabled={!user}
                 className="gap-2 font-mono uppercase tracking-wider"
                 style={{
                   background: redBorder,
@@ -253,17 +263,66 @@ function NocPanel() {
                   border: `1px solid ${redBorder}`,
                 }}
               >
-                {registering ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Dumbbell className="h-4 w-4" />
-                )}
+                <Dumbbell className="h-4 w-4" />
                 Registrar Treino
               </Button>
             </div>
           </div>
         )}
       </div>
+
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(o) => {
+          if (!registering) setModalOpen(o);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Treino</DialogTitle>
+            <DialogDescription>
+              Registre o tipo de treino realizado hoje ({today}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="training-type">Tipo de Treino que fiz hoje:</Label>
+            <Input
+              id="training-type"
+              placeholder="Ex.: Musculação, Yoga, Corrida…"
+              value={trainingType}
+              onChange={(e) => setTrainingType(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !registering) {
+                  e.preventDefault();
+                  void registerTraining();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setModalOpen(false)}
+              disabled={registering}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={registerTraining}
+              disabled={registering || !trainingType.trim()}
+              className="gap-2"
+            >
+              {registering ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              Confirmar e Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -876,11 +935,13 @@ function ReflectionTab() {
 /* ============ MÉTRICAS ============ */
 type WeekBar = { week: string; checkins: number };
 type CategorySlice = { name: string; value: number };
+type VolumeBar = { period: string; total: number };
 
 function MetricsTab() {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [weekly, setWeekly] = useState<WeekBar[]>([]);
   const [byCategory, setByCategory] = useState<CategorySlice[]>([]);
+  const [trainingVolume, setTrainingVolume] = useState<VolumeBar[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -937,6 +998,47 @@ function MetricsTab() {
         catCounts[cat] = (catCounts[cat] ?? 0) + 1;
       }
       setByCategory(Object.entries(catCounts).map(([name, value]) => ({ name, value })));
+
+      // ----- Volumetria acumulada de treinos (todos os tempos) -----
+      const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
+      const trainingHabitIds = new Set(
+        (habits ?? [])
+          .filter((h: any) => trainingKeyword.test(h.category ?? ""))
+          .map((h: any) => h.id as string),
+      );
+      const { data: allTrainingLogs } = await supabase
+        .from("habit_logs")
+        .select("habit_id,completed_at,notes")
+        .order("completed_at", { ascending: true });
+
+      const trainingLogs = (allTrainingLogs ?? []).filter((l: any) => {
+        if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
+        // Fallback: NOC inserts may have null habit_id but notes describe the training
+        if (!l.habit_id && typeof l.notes === "string" && l.notes.trim().length > 0) return true;
+        return false;
+      });
+
+      const monthCounts: Record<string, number> = {};
+      for (const l of trainingLogs) {
+        const raw = (l as any).completed_at as string | null;
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) continue;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        monthCounts[key] = (monthCounts[key] ?? 0) + 1;
+      }
+      const sortedKeys = Object.keys(monthCounts).sort();
+      let acc = 0;
+      const volume: VolumeBar[] = sortedKeys.map((k) => {
+        acc += monthCounts[k];
+        const [y, m] = k.split("-");
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", {
+          month: "short",
+          year: "2-digit",
+        });
+        return { period: label, total: acc };
+      });
+      setTrainingVolume(volume);
     })();
   }, []);
 
@@ -1044,6 +1146,44 @@ function MetricsTab() {
                   cursor={{ fill: "oklch(0.3 0.03 260 / 0.3)" }}
                 />
                 <Bar dataKey="checkins" fill="oklch(0.7 0.2 270)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card
+        className="md:col-span-2 border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Dumbbell className="h-4 w-4 text-primary" />
+            Total de Treinos Realizados (Volumetria)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-[280px]">
+          {trainingVolume.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum treino registrado ainda. Use o botão "Registrar Treino" no monitor NOC.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trainingVolume} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
+                <XAxis dataKey="period" stroke="oklch(0.65 0.02 260)" fontSize={11} />
+                <YAxis stroke="oklch(0.65 0.02 260)" fontSize={11} allowDecimals={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "oklch(0.18 0.02 260)",
+                    border: "1px solid oklch(0.3 0.03 260)",
+                    borderRadius: 8,
+                    color: "oklch(0.95 0 0)",
+                  }}
+                  cursor={{ fill: "oklch(0.3 0.03 260 / 0.3)" }}
+                  formatter={(v: any) => [`${v} treinos`, "Acumulado"]}
+                />
+                <Bar dataKey="total" fill="oklch(0.78 0.18 155)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
