@@ -507,6 +507,7 @@ type CoachResponse = {
 };
 
 function ReflectionTab() {
+  const { user } = AuthCtx.useAuth();
   const [content, setContent] = useState("");
   const [sentiment, setSentiment] = useState<string>("neutro");
   const [saving, setSaving] = useState(false);
