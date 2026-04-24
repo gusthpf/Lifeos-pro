@@ -341,10 +341,14 @@ function DojoTab() {
 
   async function checkIn(habit: Habit) {
     if (completedToday.has(habit.id)) return;
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para registrar check-in." });
+      return;
+    }
     setPending(habit.id);
     const { error } = await supabase
       .from("habit_logs")
-      .insert({ habit_id: habit.id, completed_at: today });
+      .insert({ habit_id: habit.id, completed_at: today, user_id: user.id });
     setPending(null);
     if (error) {
       toast.error("Falha no check-in", { description: error.message });
