@@ -233,13 +233,33 @@ function NocPanel() {
             </div>
           </div>
         ) : (
-          <div className="space-y-1" style={{ color: redBorder }}>
+          <div className="space-y-2" style={{ color: redBorder }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
               ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
             </div>
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
+            </div>
+            <div className="pt-2">
+              <Button
+                size="sm"
+                onClick={registerTraining}
+                disabled={registering || !user}
+                className="gap-2 font-mono uppercase tracking-wider"
+                style={{
+                  background: redBorder,
+                  color: "oklch(0.12 0.02 25)",
+                  border: `1px solid ${redBorder}`,
+                }}
+              >
+                {registering ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Dumbbell className="h-4 w-4" />
+                )}
+                Registrar Treino
+              </Button>
             </div>
           </div>
         )}
