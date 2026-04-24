@@ -35,6 +35,9 @@ import {
   Send,
   Save,
   Plus,
+  Trash2,
+  CheckCircle2,
+  Dumbbell,
 } from "lucide-react";
 import {
   BarChart,
