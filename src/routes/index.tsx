@@ -530,8 +530,14 @@ function ReflectionTab() {
 
   async function save() {
     if (!content.trim()) return;
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para salvar reflexões." });
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase.from("journal").insert({ content, sentiment });
+    const { error } = await supabase
+      .from("journal")
+      .insert({ content, sentiment, user_id: user.id });
     setSaving(false);
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
