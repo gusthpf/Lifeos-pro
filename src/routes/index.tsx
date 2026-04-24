@@ -421,6 +421,24 @@ function DojoTab() {
     });
   }
 
+  async function deleteHabit(habit: Habit) {
+    if (!confirm(`Excluir o hábito "${habit.title}"? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(habit.id);
+    const { error } = await supabase.from("habits").delete().eq("id", habit.id);
+    setDeleting(null);
+    if (error) {
+      toast.error("Falha ao excluir", { description: error.message });
+      return;
+    }
+    setHabits((curr) => (curr ?? []).filter((h) => h.id !== habit.id));
+    setCompletedToday((s) => {
+      const n = new Set(s);
+      n.delete(habit.id);
+      return n;
+    });
+    toast.success("Hábito removido", { description: `"${habit.title}" excluído do dojo.` });
+  }
+
   if (habits === null) return <SkeletonGrid />;
 
   if (habits.length === 0)
