@@ -254,8 +254,8 @@ function NocPanel() {
             <div className="pt-2">
               <Button
                 size="sm"
-                onClick={registerTraining}
-                disabled={registering || !user}
+                onClick={() => setModalOpen(true)}
+                disabled={!user}
                 className="gap-2 font-mono uppercase tracking-wider"
                 style={{
                   background: redBorder,
@@ -263,17 +263,66 @@ function NocPanel() {
                   border: `1px solid ${redBorder}`,
                 }}
               >
-                {registering ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Dumbbell className="h-4 w-4" />
-                )}
+                <Dumbbell className="h-4 w-4" />
                 Registrar Treino
               </Button>
             </div>
           </div>
         )}
       </div>
+
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(o) => {
+          if (!registering) setModalOpen(o);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Treino</DialogTitle>
+            <DialogDescription>
+              Registre o tipo de treino realizado hoje ({today}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="training-type">Tipo de Treino que fiz hoje:</Label>
+            <Input
+              id="training-type"
+              placeholder="Ex.: Musculação, Yoga, Corrida…"
+              value={trainingType}
+              onChange={(e) => setTrainingType(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !registering) {
+                  e.preventDefault();
+                  void registerTraining();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setModalOpen(false)}
+              disabled={registering}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={registerTraining}
+              disabled={registering || !trainingType.trim()}
+              className="gap-2"
+            >
+              {registering ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              Confirmar e Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
