@@ -135,6 +135,11 @@ function NocPanel() {
       toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
       return;
     }
+    const notes = trainingType.trim();
+    if (!notes) {
+      toast.error("Informe o tipo de treino");
+      return;
+    }
     setRegistering(true);
     // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
     const { data: habits } = await supabase
@@ -153,6 +158,7 @@ function NocPanel() {
         user_id: user.id,
         completed_at: today,
         habit_id: match?.id ?? null,
+        notes,
       });
     setRegistering(false);
     if (error) {
@@ -160,8 +166,10 @@ function NocPanel() {
       return;
     }
     toast.success("Treino registrado", {
-      description: match ? `"${match.title}" marcado como concluído.` : "Log de treino criado.",
+      description: `"${notes}" salvo no log de hoje.`,
     });
+    setModalOpen(false);
+    setTrainingType("");
     await probe();
   }
 
