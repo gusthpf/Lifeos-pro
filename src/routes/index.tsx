@@ -128,6 +128,43 @@ function getBahiaDateISO(): string {
   return fmt.format(new Date());
 }
 
+// Returns ms until next 00:00 in America/Bahia.
+function msUntilNextBahiaMidnight(): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bahia",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  let h = get("hour");
+  if (h === 24) h = 0; // some impls return 24 for midnight
+  const m = get("minute");
+  const s = get("second");
+  const elapsedMs = ((h * 60 + m) * 60 + s) * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return dayMs - elapsedMs + 250; // small cushion
+}
+
+// Hook: returns the current Bahia ISO date and updates exactly when 00:00 hits.
+function useBahiaToday(): string {
+  const [today, setToday] = useState<string>(getBahiaDateISO);
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    function schedule() {
+      timeoutId = setTimeout(() => {
+        setToday(getBahiaDateISO());
+        schedule();
+      }, msUntilNextBahiaMidnight());
+    }
+    schedule();
+    return () => clearTimeout(timeoutId);
+  }, []);
+  return today;
+}
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
