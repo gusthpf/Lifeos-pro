@@ -132,8 +132,8 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* AI Life Coach — force dark, neon-on-obsidian aesthetic */
-:root {
+/* AI Life Coach — neon-on-obsidian aesthetic (dark mode) */
+.dark {
   --background: oklch(0.16 0.02 270);
   --foreground: oklch(0.97 0.01 250);
   --card: oklch(0.21 0.025 270);

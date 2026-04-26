@@ -49,6 +49,7 @@ import {
   BookMarked,
 } from "lucide-react";
 import { SystemStatus } from "@/components/SystemStatus";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   BarChart,
   Bar,
@@ -542,6 +543,7 @@ function LifeCoachApp() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <SystemStatus />
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/wiki">

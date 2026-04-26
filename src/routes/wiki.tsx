@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookMarked, Search, ArrowLeft, Loader2, Copy, FileDown } from "lucide-react";
 import { SystemStatus } from "@/components/SystemStatus";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/wiki")({
@@ -176,6 +177,7 @@ ${cards}
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <SystemStatus />
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/">
