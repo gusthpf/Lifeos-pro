@@ -181,6 +181,11 @@ function NocPanel() {
   const [registering, setRegistering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [trainingType, setTrainingType] = useState("");
+  const [trainingCategory, setTrainingCategory] = useState<string>("Musculação");
+  const [trainingFocus, setTrainingFocus] = useState("");
+  const [trainingDuration, setTrainingDuration] = useState<string>("");
+  const [trainingIntensity, setTrainingIntensity] = useState<string>("Moderada");
+  const [trainingNotes, setTrainingNotes] = useState("");
   const today = useBahiaToday();
 
   async function probe() {
