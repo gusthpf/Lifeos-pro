@@ -77,6 +77,85 @@ function WikiPage() {
     });
   }, [entries, query]);
 
+  function buildMarkdown(items: WikiEntry[]): string {
+    const header = `# Wiki Técnica\n\n_Exportado em ${new Date().toLocaleString("pt-BR")} · ${items.length} entradas_\n\n---\n\n`;
+    const body = items
+      .map((e) => {
+        const date = e.criado_em
+          ? new Date(e.criado_em).toLocaleDateString("pt-BR")
+          : "";
+        const tags = (e.tags ?? []).length ? `**Tags:** ${(e.tags ?? []).map((t) => `\`${t}\``).join(", ")}\n\n` : "";
+        return `## ${e.titulo}\n\n${date ? `_${date}_\n\n` : ""}${tags}\`\`\`\n${e.solucao}\n\`\`\`\n`;
+      })
+      .join("\n---\n\n");
+    return header + body;
+  }
+
+  async function copyMarkdown() {
+    const items = filtered ?? [];
+    if (items.length === 0) {
+      toast.error("Nada para copiar.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(buildMarkdown(items));
+      toast.success(`Markdown copiado (${items.length} entradas).`);
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
+  }
+
+  function exportPdf() {
+    const items = filtered ?? [];
+    if (items.length === 0) {
+      toast.error("Nada para exportar.");
+      return;
+    }
+    const esc = (s: string) =>
+      s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+    const cards = items
+      .map((e) => {
+        const date = e.criado_em
+          ? new Date(e.criado_em).toLocaleDateString("pt-BR")
+          : "";
+        const tags = (e.tags ?? [])
+          .map((t) => `<span class="tag">${esc(t)}</span>`)
+          .join(" ");
+        return `<article>
+  <h2>${esc(e.titulo)}</h2>
+  <div class="meta">${date}${tags ? " · " + tags : ""}</div>
+  <pre>${esc(e.solucao)}</pre>
+</article>`;
+      })
+      .join("\n");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Wiki Técnica</title>
+<style>
+  @page { margin: 18mm; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; line-height:1.5; }
+  header { border-bottom: 2px solid #111; margin-bottom: 18px; padding-bottom: 8px; }
+  h1 { margin:0; font-size: 22px; }
+  .sub { color:#555; font-size: 12px; margin-top: 4px; }
+  article { page-break-inside: avoid; margin: 16px 0 22px; }
+  h2 { font-size: 15px; margin: 0 0 4px; }
+  .meta { color:#666; font-size: 11px; margin-bottom: 6px; }
+  .tag { display:inline-block; background:#eef; border:1px solid #cce; border-radius: 10px; padding: 1px 8px; font-size: 10px; margin-right: 4px; color:#224; }
+  pre { background:#f6f6f8; border:1px solid #e3e3ea; border-radius:6px; padding:10px 12px; font-size: 11px; white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, Menlo, Consolas, monospace; }
+</style></head><body>
+<header><h1>Wiki Técnica</h1><div class="sub">Exportado em ${new Date().toLocaleString("pt-BR")} · ${items.length} entradas</div></header>
+${cards}
+<script>window.onload = () => { setTimeout(() => window.print(), 200); };</script>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) {
+      toast.error("Permita pop-ups para exportar PDF.");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+
   return (
     <div className="min-h-screen text-foreground">
       <header className="mx-auto max-w-6xl px-6 pt-10 pb-6">
