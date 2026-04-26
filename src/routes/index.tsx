@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import * as AuthCtx from "@/contexts/AuthContext";
@@ -38,6 +38,8 @@ import {
   Trash2,
   CheckCircle2,
   Dumbbell,
+  Pencil,
+  BookMarked,
 } from "lucide-react";
 import {
   BarChart,
@@ -67,7 +69,17 @@ export const Route = createFileRoute("/")({
   component: LifeCoachApp,
 });
 
-type Habit = { id: string; title: string; category: string | null; xp_reward: number | null };
+type FrequencyType = "diario" | "semanal" | "mensal";
+type Habit = {
+  id: string;
+  title: string;
+  category: string | null;
+  xp_reward: number | null;
+  frequency_type: string | null;
+  duration: number | null;
+  target_per_period: number | null;
+};
+type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
   id: string;
   objective: string;
@@ -75,6 +87,20 @@ type Goal = {
   status: string | null;
   created_at: string | null;
 };
+
+function normalizeHorizon(h: string | null | undefined): GoalHorizon {
+  const s = (h ?? "").toLowerCase();
+  if (/(curto|short)/.test(s)) return "curto";
+  if (/(longo|long)/.test(s)) return "longo";
+  return "medio";
+}
+
+function normalizeFrequency(f: string | null | undefined): FrequencyType {
+  const s = (f ?? "").toLowerCase();
+  if (s.startsWith("sem")) return "semanal";
+  if (s.startsWith("men")) return "mensal";
+  return "diario";
+}
 type JournalEntry = {
   id: string;
   content: string;
@@ -102,6 +128,43 @@ function getBahiaDateISO(): string {
   return fmt.format(new Date());
 }
 
+// Returns ms until next 00:00 in America/Bahia.
+function msUntilNextBahiaMidnight(): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bahia",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  let h = get("hour");
+  if (h === 24) h = 0; // some impls return 24 for midnight
+  const m = get("minute");
+  const s = get("second");
+  const elapsedMs = ((h * 60 + m) * 60 + s) * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return dayMs - elapsedMs + 250; // small cushion
+}
+
+// Hook: returns the current Bahia ISO date and updates exactly when 00:00 hits.
+function useBahiaToday(): string {
+  const [today, setToday] = useState<string>(getBahiaDateISO);
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    function schedule() {
+      timeoutId = setTimeout(() => {
+        setToday(getBahiaDateISO());
+        schedule();
+      }, msUntilNextBahiaMidnight());
+    }
+    schedule();
+    return () => clearTimeout(timeoutId);
+  }, []);
+  return today;
+}
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
@@ -110,14 +173,22 @@ function NocPanel() {
   const [registering, setRegistering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [trainingType, setTrainingType] = useState("");
-  const today = getBahiaDateISO();
+  const today = useBahiaToday();
 
   async function probe() {
     setStatus("loading");
-    const { data, error } = await supabase
-      .from("habit_logs")
-      .select("id")
-      .eq("completed_at", today);
+    // Isolate: count only logs that look like a TRAINING log today.
+    // Criterion: habit.title matches /treino|muscul/i  OR  notes match the same.
+    const trainingTitle = /(treino|muscul)/i;
+    const [{ data: habits }, { data: logs, error }] = await Promise.all([
+      supabase.from("habits").select("id,title"),
+      supabase.from("habit_logs").select("id,habit_id,notes").eq("completed_at", today),
+    ]);
+    const trainingHabitIds = new Set(
+      (habits ?? [])
+        .filter((h: any) => trainingTitle.test(h.title ?? ""))
+        .map((h: any) => h.id as string),
+    );
     const now = new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour12: false });
     setLastCheck(now);
     if (error) {
@@ -125,7 +196,12 @@ function NocPanel() {
       setLogCount(0);
       return;
     }
-    const count = data?.length ?? 0;
+    const trainingLogs = (logs ?? []).filter((l: any) => {
+      if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
+      if (typeof l.notes === "string" && trainingTitle.test(l.notes)) return true;
+      return false;
+    });
+    const count = trainingLogs.length;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
   }
@@ -141,16 +217,10 @@ function NocPanel() {
       return;
     }
     setRegistering(true);
-    // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
-    const { data: habits } = await supabase
-      .from("habits")
-      .select("id,title,category");
-    const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
-    const match =
-      (habits ?? []).find(
-        (h: any) =>
-          trainingKeyword.test(h.category ?? "") || trainingKeyword.test(h.title ?? ""),
-      ) ?? (habits ?? [])[0];
+    // Try to attach to a Treino/Musculação habit; else null habit_id (notes still tags it).
+    const trainingTitle = /(treino|muscul)/i;
+    const { data: habits } = await supabase.from("habits").select("id,title");
+    const match = (habits ?? []).find((h: any) => trainingTitle.test(h.title ?? ""));
 
     const { error } = await supabase
       .from("habit_logs")
@@ -330,12 +400,13 @@ function NocPanel() {
 function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
-  const displayName = profile?.full_name?.trim() || username;
+  const fullName = profile?.full_name?.trim() || username || "";
+  const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const greeting =
     loading || !user
       ? "Bem-vindo!"
-      : displayName
-        ? `Olá, ${displayName}`
+      : firstName
+        ? `Olá, ${firstName}`
         : "Bem-vindo!";
 
   // Redirect unauthenticated users to /auth once we know there's no session
@@ -364,18 +435,25 @@ function LifeCoachApp() {
               </p>
             </div>
           </div>
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                await signOut();
-                navigate({ to: "/auth" });
-              }}
-            >
-              Sair
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/wiki">
+                <BookMarked className="h-4 w-4" /> Wiki
+              </Link>
             </Button>
-          )}
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await signOut();
+                  navigate({ to: "/auth" });
+                }}
+              >
+                Sair
+              </Button>
+            )}
+          </div>
         </div>
         <div
           className="mt-6 rounded-lg border border-border/60 bg-card/60 px-5 py-4 backdrop-blur"
@@ -1476,7 +1554,7 @@ function NexusTab() {
 /* ============ Helpers ============ */
 
 /* ============ MANAGEMENT BAR ============ */
-type ModalKind = "habit" | "goal" | "metric" | null;
+type ModalKind = "habit" | "goal" | null;
 
 async function getCurrentUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getUser();
@@ -1496,13 +1574,8 @@ function ManagementBar() {
       <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("goal")}>
         <Plus className="h-3.5 w-3.5" /> Nova Estratégia
       </Button>
-      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("metric")}>
-        <Plus className="h-3.5 w-3.5" /> Nova Métrica
-      </Button>
-
       <NewHabitModal open={open === "habit"} onClose={() => setOpen(null)} />
       <NewGoalModal open={open === "goal"} onClose={() => setOpen(null)} />
-      <NewMetricModal open={open === "metric"} onClose={() => setOpen(null)} />
     </div>
   );
 }
@@ -1511,6 +1584,9 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [xp, setXp] = useState("10");
+  const [frequency, setFrequency] = useState<FrequencyType>("diario");
+  const [duration, setDuration] = useState("4");
+  const [target, setTarget] = useState("1");
   const [saving, setSaving] = useState(false);
 
   async function submit() {
@@ -1521,6 +1597,9 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       title: title.trim(),
       category: category.trim() || null,
       xp_reward: Number(xp) || 10,
+      frequency_type: frequency,
+      duration: Number(duration) || 0,
+      target_per_period: Number(target) || 1,
       user_id,
     });
     setSaving(false);
@@ -1529,9 +1608,14 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     toast.success("Hábito criado");
-    setTitle(""); setCategory(""); setXp("10");
+    setTitle(""); setCategory(""); setXp("10"); setFrequency("diario"); setDuration("4"); setTarget("1");
     onClose();
   }
+
+  const durationLabel =
+    frequency === "diario" ? "Duração (dias)" : frequency === "semanal" ? "Duração (semanas)" : "Duração (meses)";
+  const targetLabel =
+    frequency === "diario" ? "Check-ins / dia" : frequency === "semanal" ? "Dias / semana" : "Dias / mês";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -1549,9 +1633,34 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Label htmlFor="h-cat">Categoria</Label>
             <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="h-xp">XP por check-in</Label>
-            <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="h-freq">Tipo</Label>
+              <select
+                id="h-freq"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="diario">Diário</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="h-xp">XP por check-in</Label>
+              <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="h-dur">{durationLabel}</Label>
+              <Input id="h-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="h-target">{targetLabel}</Label>
+              <Input id="h-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+            </div>
           </div>
         </div>
         <DialogFooter>
@@ -1565,9 +1674,118 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
+function EditHabitModal({
+  habit,
+  open,
+  onClose,
+  onSaved,
+}: {
+  habit: Habit | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: (updated: Habit) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [xp, setXp] = useState("10");
+  const [frequency, setFrequency] = useState<FrequencyType>("diario");
+  const [duration, setDuration] = useState("0");
+  const [target, setTarget] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (habit) {
+      setTitle(habit.title ?? "");
+      setCategory(habit.category ?? "");
+      setXp(String(habit.xp_reward ?? 10));
+      setFrequency(normalizeFrequency(habit.frequency_type));
+      setDuration(String(habit.duration ?? 0));
+      setTarget(String(habit.target_per_period ?? 1));
+    }
+  }, [habit]);
+
+  async function submit() {
+    if (!habit || !title.trim()) return;
+    setSaving(true);
+    const updates = {
+      title: title.trim(),
+      category: category.trim() || null,
+      xp_reward: Number(xp) || 10,
+      frequency_type: frequency,
+      duration: Number(duration) || 0,
+      target_per_period: Number(target) || 1,
+    };
+    const { error } = await supabase.from("habits").update(updates).eq("id", habit.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao editar hábito", { description: error.message });
+      return;
+    }
+    toast.success("Hábito atualizado");
+    onSaved({ ...habit, ...updates });
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Hábito</DialogTitle>
+          <DialogDescription>Recategorize, reajuste a frequência ou as metas.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="eh-title">Título</Label>
+            <Input id="eh-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eh-cat">Categoria</Label>
+            <Input id="eh-cat" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={50} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-freq">Tipo</Label>
+              <select
+                id="eh-freq"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="diario">Diário</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-xp">XP por check-in</Label>
+              <Input id="eh-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-dur">Duração</Label>
+              <Input id="eh-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-target">Meta por período</Label>
+              <Input id="eh-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !title.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [objective, setObjective] = useState("");
-  const [horizon, setHorizon] = useState("");
+  const [horizon, setHorizon] = useState<GoalHorizon>("medio");
   const [status, setStatus] = useState("em_progresso");
   const [saving, setSaving] = useState(false);
 
@@ -1577,7 +1795,7 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
     const user_id = await getCurrentUserId();
     const { error } = await supabase.from("life_goals").insert({
       objective: objective.trim(),
-      horizon: horizon.trim() || null,
+      horizon,
       status,
       user_id,
     });
@@ -1587,7 +1805,7 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
       return;
     }
     toast.success("Estratégia criada");
-    setObjective(""); setHorizon(""); setStatus("em_progresso");
+    setObjective(""); setHorizon("medio"); setStatus("em_progresso");
     onClose();
   }
 
@@ -1605,7 +1823,16 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="g-hor">Horizonte</Label>
-            <Input id="g-hor" value={horizon} onChange={(e) => setHorizon(e.target.value)} placeholder="curto, médio, longo prazo..." maxLength={50} />
+            <select
+              id="g-hor"
+              value={horizon}
+              onChange={(e) => setHorizon(e.target.value as GoalHorizon)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="curto">Curto Prazo</option>
+              <option value="medio">Médio Prazo</option>
+              <option value="longo">Longo Prazo</option>
+            </select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="g-st">Status</Label>
@@ -1625,70 +1852,6 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button onClick={submit} disabled={saving || !objective.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function NewMetricModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [fullName, setFullName] = useState("");
-  const [xp, setXp] = useState("0");
-  const [level, setLevel] = useState("1");
-  const [saving, setSaving] = useState(false);
-
-  async function submit() {
-    setSaving(true);
-    const user_id = await getCurrentUserId();
-    if (!user_id) {
-      setSaving(false);
-      toast.error("Sessão necessária", { description: "Faça login para criar métricas." });
-      return;
-    }
-    const { error } = await supabase.from("profiles").upsert({
-      id: user_id,
-      full_name: fullName.trim() || null,
-      xp_total: Number(xp) || 0,
-      level: Number(level) || 1,
-      last_access: new Date().toISOString(),
-    });
-    setSaving(false);
-    if (error) {
-      toast.error("Falha ao salvar métrica", { description: error.message });
-      return;
-    }
-    toast.success("Perfil de métricas atualizado");
-    onClose();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nova Métrica</DialogTitle>
-          <DialogDescription>Inicialize ou atualize seu perfil de progresso.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="p-name">Nome</Label>
-            <Input id="p-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="p-xp">XP total</Label>
-              <Input id="p-xp" type="number" min={0} value={xp} onChange={(e) => setXp(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="p-lvl">Nível</Label>
-              <Input id="p-lvl" type="number" min={1} value={level} onChange={(e) => setLevel(e.target.value)} />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={submit} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
