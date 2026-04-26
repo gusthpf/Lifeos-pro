@@ -379,29 +379,103 @@ function NocPanel() {
           if (!registering) setModalOpen(o);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Treino</DialogTitle>
             <DialogDescription>
-              Registre o tipo de treino realizado hoje ({today}).
+              Registre os detalhes do treino realizado hoje ({today}).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="training-type">Tipo de Treino que fiz hoje:</Label>
-            <Input
-              id="training-type"
-              placeholder="Ex.: Musculação, Yoga, Corrida…"
-              value={trainingType}
-              onChange={(e) => setTrainingType(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !registering) {
-                  e.preventDefault();
-                  void registerTraining();
-                }
-              }}
-            />
+
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="training-category">Categoria</Label>
+                <Select
+                  value={trainingCategory}
+                  onValueChange={setTrainingCategory}
+                >
+                  <SelectTrigger id="training-category">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Musculação">Musculação</SelectItem>
+                    <SelectItem value="Cardio">Cardio</SelectItem>
+                    <SelectItem value="Corrida">Corrida</SelectItem>
+                    <SelectItem value="Funcional">Funcional</SelectItem>
+                    <SelectItem value="Crossfit">Crossfit</SelectItem>
+                    <SelectItem value="Yoga">Yoga</SelectItem>
+                    <SelectItem value="Mobilidade">Mobilidade</SelectItem>
+                    <SelectItem value="Esporte">Esporte</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="training-intensity">Intensidade</Label>
+                <Select
+                  value={trainingIntensity}
+                  onValueChange={setTrainingIntensity}
+                >
+                  <SelectTrigger id="training-intensity">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Leve">Leve</SelectItem>
+                    <SelectItem value="Moderada">Moderada</SelectItem>
+                    <SelectItem value="Intensa">Intensa</SelectItem>
+                    <SelectItem value="Máxima">Máxima</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-focus">Foco / Grupo Muscular</Label>
+              <Input
+                id="training-focus"
+                placeholder="Ex.: Peito e Tríceps, Pernas, Costas…"
+                value={trainingFocus}
+                onChange={(e) => setTrainingFocus(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="training-duration">Duração (min)</Label>
+                <Input
+                  id="training-duration"
+                  type="number"
+                  min={1}
+                  placeholder="Ex.: 60"
+                  value={trainingDuration}
+                  onChange={(e) => setTrainingDuration(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="training-type">Detalhe extra (opcional)</Label>
+                <Input
+                  id="training-type"
+                  placeholder="Ex.: Treino A, ABC…"
+                  value={trainingType}
+                  onChange={(e) => setTrainingType(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-notes">Observações</Label>
+              <Textarea
+                id="training-notes"
+                placeholder="Como foi a execução, sensações, PRs, ajustes…"
+                value={trainingNotes}
+                onChange={(e) => setTrainingNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -412,7 +486,7 @@ function NocPanel() {
             </Button>
             <Button
               onClick={registerTraining}
-              disabled={registering || !trainingType.trim()}
+              disabled={registering || !trainingCategory.trim()}
               className="gap-2"
             >
               {registering ? (
