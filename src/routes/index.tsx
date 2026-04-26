@@ -400,12 +400,13 @@ function NocPanel() {
 function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
-  const displayName = profile?.full_name?.trim() || username;
+  const fullName = profile?.full_name?.trim() || username || "";
+  const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const greeting =
     loading || !user
       ? "Bem-vindo!"
-      : displayName
-        ? `Olá, ${displayName}`
+      : firstName
+        ? `Olá, ${firstName}`
         : "Bem-vindo!";
 
   // Redirect unauthenticated users to /auth once we know there's no session
@@ -434,18 +435,25 @@ function LifeCoachApp() {
               </p>
             </div>
           </div>
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                await signOut();
-                navigate({ to: "/auth" });
-              }}
-            >
-              Sair
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/wiki">
+                <BookMarked className="h-4 w-4" /> Wiki
+              </Link>
             </Button>
-          )}
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await signOut();
+                  navigate({ to: "/auth" });
+                }}
+              >
+                Sair
+              </Button>
+            )}
+          </div>
         </div>
         <div
           className="mt-6 rounded-lg border border-border/60 bg-card/60 px-5 py-4 backdrop-blur"
