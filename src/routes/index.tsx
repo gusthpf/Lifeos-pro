@@ -173,14 +173,22 @@ function NocPanel() {
   const [registering, setRegistering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [trainingType, setTrainingType] = useState("");
-  const today = getBahiaDateISO();
+  const today = useBahiaToday();
 
   async function probe() {
     setStatus("loading");
-    const { data, error } = await supabase
-      .from("habit_logs")
-      .select("id")
-      .eq("completed_at", today);
+    // Isolate: count only logs that look like a TRAINING log today.
+    // Criterion: habit.title matches /treino|muscul/i  OR  notes match the same.
+    const trainingTitle = /(treino|muscul)/i;
+    const [{ data: habits }, { data: logs, error }] = await Promise.all([
+      supabase.from("habits").select("id,title"),
+      supabase.from("habit_logs").select("id,habit_id,notes").eq("completed_at", today),
+    ]);
+    const trainingHabitIds = new Set(
+      (habits ?? [])
+        .filter((h: any) => trainingTitle.test(h.title ?? ""))
+        .map((h: any) => h.id as string),
+    );
     const now = new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour12: false });
     setLastCheck(now);
     if (error) {
@@ -188,7 +196,12 @@ function NocPanel() {
       setLogCount(0);
       return;
     }
-    const count = data?.length ?? 0;
+    const trainingLogs = (logs ?? []).filter((l: any) => {
+      if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
+      if (typeof l.notes === "string" && trainingTitle.test(l.notes)) return true;
+      return false;
+    });
+    const count = trainingLogs.length;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
   }
@@ -204,16 +217,10 @@ function NocPanel() {
       return;
     }
     setRegistering(true);
-    // Try to attach to a training-like habit; fall back to any user habit; else null habit_id
-    const { data: habits } = await supabase
-      .from("habits")
-      .select("id,title,category");
-    const trainingKeyword = /(trein|fit|workout|exerc|academia|gym|corr)/i;
-    const match =
-      (habits ?? []).find(
-        (h: any) =>
-          trainingKeyword.test(h.category ?? "") || trainingKeyword.test(h.title ?? ""),
-      ) ?? (habits ?? [])[0];
+    // Try to attach to a Treino/Musculação habit; else null habit_id (notes still tags it).
+    const trainingTitle = /(treino|muscul)/i;
+    const { data: habits } = await supabase.from("habits").select("id,title");
+    const match = (habits ?? []).find((h: any) => trainingTitle.test(h.title ?? ""));
 
     const { error } = await supabase
       .from("habit_logs")
