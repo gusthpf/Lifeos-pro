@@ -1584,6 +1584,9 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [xp, setXp] = useState("10");
+  const [frequency, setFrequency] = useState<FrequencyType>("diario");
+  const [duration, setDuration] = useState("4");
+  const [target, setTarget] = useState("1");
   const [saving, setSaving] = useState(false);
 
   async function submit() {
@@ -1594,6 +1597,9 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       title: title.trim(),
       category: category.trim() || null,
       xp_reward: Number(xp) || 10,
+      frequency_type: frequency,
+      duration: Number(duration) || 0,
+      target_per_period: Number(target) || 1,
       user_id,
     });
     setSaving(false);
@@ -1602,9 +1608,14 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     toast.success("Hábito criado");
-    setTitle(""); setCategory(""); setXp("10");
+    setTitle(""); setCategory(""); setXp("10"); setFrequency("diario"); setDuration("4"); setTarget("1");
     onClose();
   }
+
+  const durationLabel =
+    frequency === "diario" ? "Duração (dias)" : frequency === "semanal" ? "Duração (semanas)" : "Duração (meses)";
+  const targetLabel =
+    frequency === "diario" ? "Check-ins / dia" : frequency === "semanal" ? "Dias / semana" : "Dias / mês";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -1622,9 +1633,34 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Label htmlFor="h-cat">Categoria</Label>
             <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="h-xp">XP por check-in</Label>
-            <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="h-freq">Tipo</Label>
+              <select
+                id="h-freq"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="diario">Diário</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="h-xp">XP por check-in</Label>
+              <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="h-dur">{durationLabel}</Label>
+              <Input id="h-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="h-target">{targetLabel}</Label>
+              <Input id="h-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+            </div>
           </div>
         </div>
         <DialogFooter>
@@ -1638,9 +1674,118 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
+function EditHabitModal({
+  habit,
+  open,
+  onClose,
+  onSaved,
+}: {
+  habit: Habit | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: (updated: Habit) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [xp, setXp] = useState("10");
+  const [frequency, setFrequency] = useState<FrequencyType>("diario");
+  const [duration, setDuration] = useState("0");
+  const [target, setTarget] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (habit) {
+      setTitle(habit.title ?? "");
+      setCategory(habit.category ?? "");
+      setXp(String(habit.xp_reward ?? 10));
+      setFrequency(normalizeFrequency(habit.frequency_type));
+      setDuration(String(habit.duration ?? 0));
+      setTarget(String(habit.target_per_period ?? 1));
+    }
+  }, [habit]);
+
+  async function submit() {
+    if (!habit || !title.trim()) return;
+    setSaving(true);
+    const updates = {
+      title: title.trim(),
+      category: category.trim() || null,
+      xp_reward: Number(xp) || 10,
+      frequency_type: frequency,
+      duration: Number(duration) || 0,
+      target_per_period: Number(target) || 1,
+    };
+    const { error } = await supabase.from("habits").update(updates).eq("id", habit.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao editar hábito", { description: error.message });
+      return;
+    }
+    toast.success("Hábito atualizado");
+    onSaved({ ...habit, ...updates });
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Hábito</DialogTitle>
+          <DialogDescription>Recategorize, reajuste a frequência ou as metas.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="eh-title">Título</Label>
+            <Input id="eh-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eh-cat">Categoria</Label>
+            <Input id="eh-cat" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={50} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-freq">Tipo</Label>
+              <select
+                id="eh-freq"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="diario">Diário</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-xp">XP por check-in</Label>
+              <Input id="eh-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-dur">Duração</Label>
+              <Input id="eh-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eh-target">Meta por período</Label>
+              <Input id="eh-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !title.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [objective, setObjective] = useState("");
-  const [horizon, setHorizon] = useState("");
+  const [horizon, setHorizon] = useState<GoalHorizon>("medio");
   const [status, setStatus] = useState("em_progresso");
   const [saving, setSaving] = useState(false);
 
@@ -1650,7 +1795,7 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
     const user_id = await getCurrentUserId();
     const { error } = await supabase.from("life_goals").insert({
       objective: objective.trim(),
-      horizon: horizon.trim() || null,
+      horizon,
       status,
       user_id,
     });
@@ -1660,7 +1805,7 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
       return;
     }
     toast.success("Estratégia criada");
-    setObjective(""); setHorizon(""); setStatus("em_progresso");
+    setObjective(""); setHorizon("medio"); setStatus("em_progresso");
     onClose();
   }
 
@@ -1678,7 +1823,16 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="g-hor">Horizonte</Label>
-            <Input id="g-hor" value={horizon} onChange={(e) => setHorizon(e.target.value)} placeholder="curto, médio, longo prazo..." maxLength={50} />
+            <select
+              id="g-hor"
+              value={horizon}
+              onChange={(e) => setHorizon(e.target.value as GoalHorizon)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="curto">Curto Prazo</option>
+              <option value="medio">Médio Prazo</option>
+              <option value="longo">Longo Prazo</option>
+            </select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="g-st">Status</Label>
@@ -1698,70 +1852,6 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button onClick={submit} disabled={saving || !objective.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function NewMetricModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [fullName, setFullName] = useState("");
-  const [xp, setXp] = useState("0");
-  const [level, setLevel] = useState("1");
-  const [saving, setSaving] = useState(false);
-
-  async function submit() {
-    setSaving(true);
-    const user_id = await getCurrentUserId();
-    if (!user_id) {
-      setSaving(false);
-      toast.error("Sessão necessária", { description: "Faça login para criar métricas." });
-      return;
-    }
-    const { error } = await supabase.from("profiles").upsert({
-      id: user_id,
-      full_name: fullName.trim() || null,
-      xp_total: Number(xp) || 0,
-      level: Number(level) || 1,
-      last_access: new Date().toISOString(),
-    });
-    setSaving(false);
-    if (error) {
-      toast.error("Falha ao salvar métrica", { description: error.message });
-      return;
-    }
-    toast.success("Perfil de métricas atualizado");
-    onClose();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nova Métrica</DialogTitle>
-          <DialogDescription>Inicialize ou atualize seu perfil de progresso.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="p-name">Nome</Label>
-            <Input id="p-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="p-xp">XP total</Label>
-              <Input id="p-xp" type="number" min={0} value={xp} onChange={(e) => setXp(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="p-lvl">Nível</Label>
-              <Input id="p-lvl" type="number" min={1} value={level} onChange={(e) => setLevel(e.target.value)} />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={submit} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
