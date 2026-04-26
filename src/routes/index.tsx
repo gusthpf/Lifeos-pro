@@ -41,6 +41,7 @@ import {
   Pencil,
   BookMarked,
 } from "lucide-react";
+import { SystemStatus } from "@/components/SystemStatus";
 import {
   BarChart,
   Bar,
@@ -436,6 +437,7 @@ function LifeCoachApp() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <SystemStatus />
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/wiki">
                 <BookMarked className="h-4 w-4" /> Wiki
