@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import * as AuthCtx from "@/contexts/AuthContext";
@@ -38,6 +38,8 @@ import {
   Trash2,
   CheckCircle2,
   Dumbbell,
+  Pencil,
+  BookMarked,
 } from "lucide-react";
 import {
   BarChart,
@@ -67,7 +69,17 @@ export const Route = createFileRoute("/")({
   component: LifeCoachApp,
 });
 
-type Habit = { id: string; title: string; category: string | null; xp_reward: number | null };
+type FrequencyType = "diario" | "semanal" | "mensal";
+type Habit = {
+  id: string;
+  title: string;
+  category: string | null;
+  xp_reward: number | null;
+  frequency_type: string | null;
+  duration: number | null;
+  target_per_period: number | null;
+};
+type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
   id: string;
   objective: string;
@@ -75,6 +87,20 @@ type Goal = {
   status: string | null;
   created_at: string | null;
 };
+
+function normalizeHorizon(h: string | null | undefined): GoalHorizon {
+  const s = (h ?? "").toLowerCase();
+  if (/(curto|short)/.test(s)) return "curto";
+  if (/(longo|long)/.test(s)) return "longo";
+  return "medio";
+}
+
+function normalizeFrequency(f: string | null | undefined): FrequencyType {
+  const s = (f ?? "").toLowerCase();
+  if (s.startsWith("sem")) return "semanal";
+  if (s.startsWith("men")) return "mensal";
+  return "diario";
+}
 type JournalEntry = {
   id: string;
   content: string;
