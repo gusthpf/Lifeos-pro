@@ -224,11 +224,25 @@ function NocPanel() {
       toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
       return;
     }
-    const notes = trainingType.trim();
-    if (!notes) {
-      toast.error("Informe o tipo de treino");
-      return;
+    const category = trainingCategory.trim();
+    const focus = trainingFocus.trim();
+    const duration = trainingDuration.trim();
+    const intensity = trainingIntensity.trim();
+    const extra = trainingNotes.trim();
+    const customType = trainingType.trim();
+
+    // Compose a rich notes string. Must contain "treino" or "muscul" to be detected by the NOC probe.
+    const baseLabel = category || customType || "Treino";
+    const parts: string[] = [`Treino: ${baseLabel}`];
+    if (customType && customType.toLowerCase() !== category.toLowerCase()) {
+      parts.push(`Tipo: ${customType}`);
     }
+    if (focus) parts.push(`Foco: ${focus}`);
+    if (duration) parts.push(`Duração: ${duration} min`);
+    if (intensity) parts.push(`Intensidade: ${intensity}`);
+    if (extra) parts.push(`Obs: ${extra}`);
+    const notes = parts.join(" · ");
+
     setRegistering(true);
     // Try to attach to a Treino/Musculação habit; else null habit_id (notes still tags it).
     const trainingTitle = /(treino|muscul)/i;
@@ -249,10 +263,15 @@ function NocPanel() {
       return;
     }
     toast.success("Treino registrado", {
-      description: `"${notes}" salvo no log de hoje.`,
+      description: notes,
     });
     setModalOpen(false);
     setTrainingType("");
+    setTrainingFocus("");
+    setTrainingDuration("");
+    setTrainingNotes("");
+    setTrainingCategory("Musculação");
+    setTrainingIntensity("Moderada");
     await probe();
   }
 
