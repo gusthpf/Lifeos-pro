@@ -715,7 +715,7 @@ function StrategyTab() {
       <EmptyState
         icon={<Target className="h-8 w-8" />}
         title="Nenhuma meta definida"
-        description="Insira metas em 'life_goals' para visualizar sua estratégia."
+        description="Vamos cadastrar uma meta e ver nosso progresso acontecer!"
       />
     );
 
