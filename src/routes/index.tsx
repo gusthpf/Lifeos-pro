@@ -585,7 +585,7 @@ function DojoTab() {
       <EmptyState
         icon={<Swords className="h-8 w-8" />}
         title="Nenhum hábito no dojo"
-        description="Adicione hábitos na tabela 'habits' do Supabase para começar a treinar."
+        description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
       />
     );
 
