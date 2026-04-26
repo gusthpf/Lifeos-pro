@@ -50,7 +50,10 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          duration: number | null
+          frequency_type: string | null
           id: string
+          target_per_period: number | null
           title: string
           user_id: string | null
           xp_reward: number | null
@@ -58,7 +61,10 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string | null
+          duration?: number | null
+          frequency_type?: string | null
           id?: string
+          target_per_period?: number | null
           title: string
           user_id?: string | null
           xp_reward?: number | null
@@ -66,7 +72,10 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string | null
+          duration?: number | null
+          frequency_type?: string | null
           id?: string
+          target_per_period?: number | null
           title?: string
           user_id?: string | null
           xp_reward?: number | null
