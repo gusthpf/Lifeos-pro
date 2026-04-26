@@ -18,6 +18,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast, Toaster } from "sonner";
 import {
   Swords,
@@ -174,6 +181,11 @@ function NocPanel() {
   const [registering, setRegistering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [trainingType, setTrainingType] = useState("");
+  const [trainingCategory, setTrainingCategory] = useState<string>("Musculação");
+  const [trainingFocus, setTrainingFocus] = useState("");
+  const [trainingDuration, setTrainingDuration] = useState<string>("");
+  const [trainingIntensity, setTrainingIntensity] = useState<string>("Moderada");
+  const [trainingNotes, setTrainingNotes] = useState("");
   const today = useBahiaToday();
 
   async function probe() {
@@ -212,11 +224,25 @@ function NocPanel() {
       toast.error("Sessão expirada", { description: "Faça login para registrar treino." });
       return;
     }
-    const notes = trainingType.trim();
-    if (!notes) {
-      toast.error("Informe o tipo de treino");
-      return;
+    const category = trainingCategory.trim();
+    const focus = trainingFocus.trim();
+    const duration = trainingDuration.trim();
+    const intensity = trainingIntensity.trim();
+    const extra = trainingNotes.trim();
+    const customType = trainingType.trim();
+
+    // Compose a rich notes string. Must contain "treino" or "muscul" to be detected by the NOC probe.
+    const baseLabel = category || customType || "Treino";
+    const parts: string[] = [`Treino: ${baseLabel}`];
+    if (customType && customType.toLowerCase() !== category.toLowerCase()) {
+      parts.push(`Tipo: ${customType}`);
     }
+    if (focus) parts.push(`Foco: ${focus}`);
+    if (duration) parts.push(`Duração: ${duration} min`);
+    if (intensity) parts.push(`Intensidade: ${intensity}`);
+    if (extra) parts.push(`Obs: ${extra}`);
+    const notes = parts.join(" · ");
+
     setRegistering(true);
     // Try to attach to a Treino/Musculação habit; else null habit_id (notes still tags it).
     const trainingTitle = /(treino|muscul)/i;
@@ -237,10 +263,15 @@ function NocPanel() {
       return;
     }
     toast.success("Treino registrado", {
-      description: `"${notes}" salvo no log de hoje.`,
+      description: notes,
     });
     setModalOpen(false);
     setTrainingType("");
+    setTrainingFocus("");
+    setTrainingDuration("");
+    setTrainingNotes("");
+    setTrainingCategory("Musculação");
+    setTrainingIntensity("Moderada");
     await probe();
   }
 
@@ -348,29 +379,103 @@ function NocPanel() {
           if (!registering) setModalOpen(o);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Treino</DialogTitle>
             <DialogDescription>
-              Registre o tipo de treino realizado hoje ({today}).
+              Registre os detalhes do treino realizado hoje ({today}).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="training-type">Tipo de Treino que fiz hoje:</Label>
-            <Input
-              id="training-type"
-              placeholder="Ex.: Musculação, Yoga, Corrida…"
-              value={trainingType}
-              onChange={(e) => setTrainingType(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !registering) {
-                  e.preventDefault();
-                  void registerTraining();
-                }
-              }}
-            />
+
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="training-category">Categoria</Label>
+                <Select
+                  value={trainingCategory}
+                  onValueChange={setTrainingCategory}
+                >
+                  <SelectTrigger id="training-category">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Musculação">Musculação</SelectItem>
+                    <SelectItem value="Cardio">Cardio</SelectItem>
+                    <SelectItem value="Corrida">Corrida</SelectItem>
+                    <SelectItem value="Funcional">Funcional</SelectItem>
+                    <SelectItem value="Crossfit">Crossfit</SelectItem>
+                    <SelectItem value="Yoga">Yoga</SelectItem>
+                    <SelectItem value="Mobilidade">Mobilidade</SelectItem>
+                    <SelectItem value="Esporte">Esporte</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="training-intensity">Intensidade</Label>
+                <Select
+                  value={trainingIntensity}
+                  onValueChange={setTrainingIntensity}
+                >
+                  <SelectTrigger id="training-intensity">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Leve">Leve</SelectItem>
+                    <SelectItem value="Moderada">Moderada</SelectItem>
+                    <SelectItem value="Intensa">Intensa</SelectItem>
+                    <SelectItem value="Máxima">Máxima</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-focus">Foco / Grupo Muscular</Label>
+              <Input
+                id="training-focus"
+                placeholder="Ex.: Peito e Tríceps, Pernas, Costas…"
+                value={trainingFocus}
+                onChange={(e) => setTrainingFocus(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="training-duration">Duração (min)</Label>
+                <Input
+                  id="training-duration"
+                  type="number"
+                  min={1}
+                  placeholder="Ex.: 60"
+                  value={trainingDuration}
+                  onChange={(e) => setTrainingDuration(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="training-type">Detalhe extra (opcional)</Label>
+                <Input
+                  id="training-type"
+                  placeholder="Ex.: Treino A, ABC…"
+                  value={trainingType}
+                  onChange={(e) => setTrainingType(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-notes">Observações</Label>
+              <Textarea
+                id="training-notes"
+                placeholder="Como foi a execução, sensações, PRs, ajustes…"
+                value={trainingNotes}
+                onChange={(e) => setTrainingNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -381,7 +486,7 @@ function NocPanel() {
             </Button>
             <Button
               onClick={registerTraining}
-              disabled={registering || !trainingType.trim()}
+              disabled={registering || !trainingCategory.trim()}
               className="gap-2"
             >
               {registering ? (
@@ -585,7 +690,7 @@ function DojoTab() {
       <EmptyState
         icon={<Swords className="h-8 w-8" />}
         title="Nenhum hábito no dojo"
-        description="Adicione hábitos na tabela 'habits' do Supabase para começar a treinar."
+        description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
       />
     );
 
@@ -715,7 +820,7 @@ function StrategyTab() {
       <EmptyState
         icon={<Target className="h-8 w-8" />}
         title="Nenhuma meta definida"
-        description="Insira metas em 'life_goals' para visualizar sua estratégia."
+        description="Vamos cadastrar uma meta e ver nosso progresso acontecer!"
       />
     );
 
