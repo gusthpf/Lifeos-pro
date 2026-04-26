@@ -1232,10 +1232,7 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
-      <Card
-        className="md:col-span-2 border-border bg-card/70 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
+      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Dumbbell className="h-4 w-4 text-primary" />
