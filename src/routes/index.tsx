@@ -41,6 +41,7 @@ import {
   Pencil,
   BookMarked,
 } from "lucide-react";
+import { SystemStatus } from "@/components/SystemStatus";
 import {
   BarChart,
   Bar,
