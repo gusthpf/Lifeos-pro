@@ -158,6 +158,7 @@ ${cards}
 
   return (
     <div className="min-h-screen text-foreground">
+      <Toaster theme="dark" position="top-center" richColors />
       <header className="mx-auto max-w-6xl px-6 pt-10 pb-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -174,23 +175,47 @@ ${cards}
               </p>
             </div>
           </div>
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <Link to="/">
-              <ArrowLeft className="h-4 w-4" /> Voltar
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <SystemStatus />
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4" /> Voltar
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
-        <div className="relative mb-6">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pesquisar por título, conteúdo ou tag…"
-            className="pl-9 h-11"
-          />
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Pesquisar por título, conteúdo ou tag…"
+              className="pl-9 h-11"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={copyMarkdown}
+              disabled={!entries || entries.length === 0}
+            >
+              <Copy className="h-4 w-4" /> Copiar Markdown
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={exportPdf}
+              disabled={!entries || entries.length === 0}
+            >
+              <FileDown className="h-4 w-4" /> Exportar PDF
+            </Button>
+          </div>
         </div>
 
         {entries === null ? (
