@@ -1544,12 +1544,13 @@ function NexusTab() {
       p.type === "code" ? (
         <pre
           key={i}
-          className="my-2 overflow-x-auto rounded-md border border-primary/30 bg-black/60 p-3 text-xs leading-relaxed"
+          className="my-2 overflow-x-auto rounded-md border border-primary/30 p-3 text-xs leading-relaxed"
+          style={{ background: "var(--nexus-code-bg)" }}
         >
           <div className="mb-1 text-[10px] uppercase tracking-widest text-primary/70">
             {p.lang}
           </div>
-          <code className="text-primary/90">{p.content}</code>
+          <code style={{ color: "var(--nexus-code-fg)" }}>{p.content}</code>
         </pre>
       ) : (
         <span key={i} className="whitespace-pre-wrap">
