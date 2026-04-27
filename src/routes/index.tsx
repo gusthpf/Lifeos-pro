@@ -47,7 +47,10 @@ import {
   Dumbbell,
   Pencil,
   BookMarked,
+  ListTodo,
+  Archive,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
