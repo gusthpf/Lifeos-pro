@@ -930,6 +930,389 @@ function StrategyTab() {
   );
 }
 
+/* ============ TO-DO LIST ============ */
+type Priority = "Alta" | "Média" | "Baixa";
+type TodoItem = {
+  id: string;
+  title: string;
+  priority: Priority | null;
+  is_completed: boolean | null;
+  created_at: string | null;
+  completed_at: string | null;
+};
+
+const PRIORITY_META: Record<Priority, { emoji: string; label: string; color: string; bg: string; ring: string }> = {
+  Alta: {
+    emoji: "🔥",
+    label: "Alta",
+    color: "oklch(0.62 0.22 25)",
+    bg: "color-mix(in oklab, oklch(0.62 0.22 25) 12%, transparent)",
+    ring: "color-mix(in oklab, oklch(0.62 0.22 25) 35%, transparent)",
+  },
+  Média: {
+    emoji: "⚡",
+    label: "Média",
+    color: "oklch(0.78 0.17 85)",
+    bg: "color-mix(in oklab, oklch(0.78 0.17 85) 12%, transparent)",
+    ring: "color-mix(in oklab, oklch(0.78 0.17 85) 35%, transparent)",
+  },
+  Baixa: {
+    emoji: "🟢",
+    label: "Baixa",
+    color: "oklch(0.65 0.16 150)",
+    bg: "color-mix(in oklab, oklch(0.65 0.16 150) 12%, transparent)",
+    ring: "color-mix(in oklab, oklch(0.65 0.16 150) 35%, transparent)",
+  },
+};
+
+const PRIORITY_ORDER: Priority[] = ["Alta", "Média", "Baixa"];
+
+function TodoTab() {
+  const { user } = AuthCtx.useAuth();
+  const [items, setItems] = useState<TodoItem[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState<Priority>("Média");
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+
+  async function load() {
+    const { data, error } = await supabase
+      .from("todo_list")
+      .select("id,title,priority,is_completed,created_at,completed_at")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Falha ao carregar tarefas", { description: error.message });
+      setItems([]);
+      return;
+    }
+    setItems((data ?? []) as TodoItem[]);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function createTodo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Sessão expirada", { description: "Faça login para criar tarefas." });
+      return;
+    }
+    const t = title.trim();
+    if (!t) return;
+    setCreating(true);
+    const { data, error } = await supabase
+      .from("todo_list")
+      .insert({ user_id: user.id, title: t, priority })
+      .select("id,title,priority,is_completed,created_at,completed_at")
+      .single();
+    setCreating(false);
+    if (error) {
+      toast.error("Falha ao criar tarefa", { description: error.message });
+      return;
+    }
+    setItems((curr) => [data as TodoItem, ...(curr ?? [])]);
+    setTitle("");
+    toast.success("Tarefa adicionada");
+  }
+
+  async function toggleTodo(item: TodoItem) {
+    setBusy(item.id);
+    const next = !item.is_completed;
+    const { data, error } = await supabase
+      .from("todo_list")
+      .update({ is_completed: next })
+      .eq("id", item.id)
+      .select("id,title,priority,is_completed,created_at,completed_at")
+      .single();
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: error.message });
+      return;
+    }
+    setItems((curr) => (curr ?? []).map((x) => (x.id === item.id ? (data as TodoItem) : x)));
+  }
+
+  async function deleteTodo(item: TodoItem) {
+    if (!confirm(`Excluir "${item.title}"?`)) return;
+    setBusy(item.id);
+    const { error } = await supabase.from("todo_list").delete().eq("id", item.id);
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao excluir", { description: error.message });
+      return;
+    }
+    setItems((curr) => (curr ?? []).filter((x) => x.id !== item.id));
+    toast.success("Tarefa removida");
+  }
+
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const pending = (items ?? []).filter((i) => !i.is_completed);
+  const recentlyCompleted = (items ?? []).filter(
+    (i) => i.is_completed && i.completed_at && now - new Date(i.completed_at).getTime() <= DAY_MS,
+  );
+  const archived = (items ?? []).filter(
+    (i) => i.is_completed && (!i.completed_at || now - new Date(i.completed_at).getTime() > DAY_MS),
+  );
+
+  const groupedPending = PRIORITY_ORDER.map((p) => ({
+    priority: p,
+    items: pending
+      .filter((i) => (i.priority ?? "Média") === p)
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")),
+  })).filter((g) => g.items.length > 0);
+
+  if (items === null) return <SkeletonGrid />;
+
+  return (
+    <div className="space-y-6">
+      {/* Create form */}
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={createTodo} className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              placeholder="O que precisa ser feito?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="flex-1"
+            />
+            <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_ORDER.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PRIORITY_META[p].emoji} {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Pending grouped */}
+      {groupedPending.length === 0 && recentlyCompleted.length === 0 ? (
+        <EmptyState
+          icon={<ListTodo className="h-8 w-8" />}
+          title="Sem tarefas pendentes"
+          description="Adicione uma tarefa acima para começar."
+        />
+      ) : (
+        <div className="space-y-5">
+          {groupedPending.map((group) => {
+            const meta = PRIORITY_META[group.priority];
+            return (
+              <section key={group.priority} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.ring}` }}
+                  >
+                    <span aria-hidden>{meta.emoji}</span> Prioridade {meta.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {group.items.map((item) => (
+                    <TodoCard
+                      key={item.id}
+                      item={item}
+                      busy={busy === item.id}
+                      onToggle={toggleTodo}
+                      onDelete={deleteTodo}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          {recentlyCompleted.length > 0 && (
+            <section className="space-y-2 pt-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Concluídas (últimas 24h)
+                </span>
+                <span className="text-xs text-muted-foreground">{recentlyCompleted.length}</span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {recentlyCompleted.map((item) => (
+                  <TodoCard
+                    key={item.id}
+                    item={item}
+                    busy={busy === item.id}
+                    onToggle={toggleTodo}
+                    onDelete={deleteTodo}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Archive trigger */}
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setArchiveOpen(true)}
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <Archive className="h-4 w-4" />
+          Ver arquivo {archived.length > 0 ? `(${archived.length})` : ""}
+        </Button>
+      </div>
+
+      <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5" /> Arquivo de tarefas
+            </DialogTitle>
+            <DialogDescription>
+              Tarefas concluídas há mais de 24 horas.
+            </DialogDescription>
+          </DialogHeader>
+          {archived.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma tarefa arquivada ainda.</p>
+          ) : (
+            <ul className="space-y-2">
+              {archived
+                .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""))
+                .map((item) => {
+                  const meta = PRIORITY_META[(item.priority ?? "Média") as Priority];
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/60 p-2.5 text-sm"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span aria-hidden style={{ color: meta.color }}>{meta.emoji}</span>
+                        <span className="truncate line-through text-muted-foreground">{item.title}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {item.completed_at
+                            ? new Date(item.completed_at).toLocaleDateString("pt-BR")
+                            : "—"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteTodo(item)}
+                          disabled={busy === item.id}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function TodoCard({
+  item,
+  busy,
+  onToggle,
+  onDelete,
+}: {
+  item: TodoItem;
+  busy: boolean;
+  onToggle: (i: TodoItem) => void;
+  onDelete: (i: TodoItem) => void;
+}) {
+  const p = (item.priority ?? "Média") as Priority;
+  const meta = PRIORITY_META[p];
+  const done = !!item.is_completed;
+  return (
+    <Card
+      className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all ${
+        done ? "opacity-70" : ""
+      }`}
+      style={{
+        boxShadow: "var(--shadow-card)",
+        borderLeft: `3px solid ${meta.color}`,
+      }}
+    >
+      <div
+        className="absolute inset-x-0 top-0 h-0.5"
+        style={{ background: meta.color, opacity: 0.7 }}
+      />
+      <CardContent className="flex items-start gap-3 p-4">
+        <Checkbox
+          checked={done}
+          onCheckedChange={() => onToggle(item)}
+          disabled={busy}
+          className="mt-0.5"
+          style={{ borderColor: meta.color }}
+        />
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm font-medium leading-snug ${
+              done ? "line-through text-muted-foreground" : "text-foreground"
+            }`}
+          >
+            {item.title}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.ring}` }}
+            >
+              <span aria-hidden>{meta.emoji}</span> {meta.label}
+            </span>
+            {done && item.completed_at && (
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(item.completed_at).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+          onClick={() => onDelete(item)}
+          disabled={busy}
+          aria-label="Excluir tarefa"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ============ REFLEXÃO ============ */
 type CoachResponse = {
   message: string;
