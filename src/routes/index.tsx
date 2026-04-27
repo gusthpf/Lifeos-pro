@@ -1181,7 +1181,16 @@ function MetricsTab() {
       }
       const catCounts: Record<string, number> = {};
       for (const l of logs ?? []) {
-        const cat = habitCat[(l as any).habit_id] ?? "sem categoria";
+        const notes = ((l as any).notes ?? "") as string;
+        let cat: string;
+        if ((l as any).habit_id) {
+          cat = habitCat[(l as any).habit_id] ?? "sem categoria";
+        } else if (/^\s*treino\b/i.test(notes) || /\btreino\b/i.test(notes)) {
+          // Logs avulsos registrados pelo NOC ("Registrar treino") não têm habit_id.
+          cat = "treino";
+        } else {
+          cat = "sem categoria";
+        }
         catCounts[cat] = (catCounts[cat] ?? 0) + 1;
       }
       setByCategory(Object.entries(catCounts).map(([name, value]) => ({ name, value })));
