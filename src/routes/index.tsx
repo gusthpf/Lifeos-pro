@@ -601,12 +601,15 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-card/60 backdrop-blur border border-border h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
             <TabsTrigger value="estrategia" className="gap-2">
               <Target className="h-4 w-4" /> Estratégia
+            </TabsTrigger>
+            <TabsTrigger value="todo" className="gap-2">
+              <ListTodo className="h-4 w-4" /> To-do
             </TabsTrigger>
             <TabsTrigger value="reflexao" className="gap-2">
               <BookOpenText className="h-4 w-4" /> Reflexão
@@ -624,6 +627,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="estrategia" className="mt-6">
             <StrategyTab />
+          </TabsContent>
+          <TabsContent value="todo" className="mt-6">
+            <TodoTab />
           </TabsContent>
           <TabsContent value="reflexao" className="mt-6">
             <ReflectionTab />
