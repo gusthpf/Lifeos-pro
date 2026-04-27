@@ -285,8 +285,8 @@ function NocPanel() {
 
   const isOnline = status === "online";
   const isOffline = status === "offline";
-  const greenBorder = "oklch(0.78 0.18 155)";
-  const redBorder = "oklch(0.62 0.24 25)";
+  const accentVar = isOnline ? "var(--noc-online)" : "var(--noc-offline)";
+  const accentFgVar = isOnline ? "var(--noc-online-fg)" : "var(--noc-offline-fg)";
 
   return (
     <div
@@ -294,16 +294,16 @@ function NocPanel() {
         isOffline ? "noc-blink" : ""
       }`}
       style={{
-        borderColor: isOnline ? greenBorder : isOffline ? redBorder : "var(--border)",
+        borderColor: isOnline ? "var(--noc-online)" : isOffline ? "var(--noc-offline)" : "var(--border)",
         background: isOnline
-          ? "linear-gradient(180deg, oklch(0.22 0.06 155 / 0.65), oklch(0.14 0.04 155 / 0.85))"
+          ? "var(--noc-online-bg)"
           : isOffline
-            ? "linear-gradient(180deg, oklch(0.24 0.10 25 / 0.7), oklch(0.14 0.06 25 / 0.9))"
+            ? "var(--noc-offline-bg)"
             : "var(--card)",
         boxShadow: isOnline
-          ? `0 0 24px -4px ${greenBorder}`
+          ? "var(--noc-online-glow)"
           : isOffline
-            ? `0 0 28px -4px ${redBorder}`
+            ? "var(--noc-offline-glow)"
             : "none",
       }}
       role="status"
@@ -312,16 +312,16 @@ function NocPanel() {
       <div
         className="flex items-center justify-between border-b px-3 py-1.5 text-[11px] uppercase tracking-widest"
         style={{
-          borderColor: isOnline ? greenBorder : redBorder,
-          color: isOnline ? greenBorder : redBorder,
+          borderColor: accentVar,
+          color: accentFgVar,
         }}
       >
         <span className="flex items-center gap-2">
           <span
             className="inline-block h-2 w-2 rounded-full"
             style={{
-              background: isOnline ? greenBorder : redBorder,
-              boxShadow: `0 0 8px ${isOnline ? greenBorder : redBorder}`,
+              background: accentVar,
+              boxShadow: `0 0 8px ${accentVar}`,
             }}
           />
           NOC // DISCIPLINE MONITOR
@@ -336,7 +336,7 @@ function NocPanel() {
             <span>$ probing habit_logs...</span>
           </div>
         ) : isOnline ? (
-          <div className="space-y-1" style={{ color: greenBorder }}>
+          <div className="space-y-1" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
               ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
@@ -346,7 +346,7 @@ function NocPanel() {
             </div>
           </div>
         ) : (
-          <div className="space-y-2" style={{ color: redBorder }}>
+          <div className="space-y-2" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
               ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
@@ -361,9 +361,9 @@ function NocPanel() {
                 disabled={!user}
                 className="gap-2 font-mono uppercase tracking-wider"
                 style={{
-                  background: redBorder,
-                  color: "oklch(0.12 0.02 25)",
-                  border: `1px solid ${redBorder}`,
+                  background: "var(--noc-offline)",
+                  color: "var(--noc-btn-fg)",
+                  border: "1px solid var(--noc-offline)",
                 }}
               >
                 <Dumbbell className="h-4 w-4" />
