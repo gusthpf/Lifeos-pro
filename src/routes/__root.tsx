@@ -30,7 +30,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "Life OS | Dashboard de Performance" },
       { name: "description", content: "Your Life Dojo is an AI Life Coach application that helps users track habits, manage goals, journal reflections, and monitor progress." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Lovable App" },
@@ -47,6 +47,11 @@ export const Route = createRootRoute({
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/favicon.png",
       },
     ],
   }),
