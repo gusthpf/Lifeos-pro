@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          id: string
+          start_time: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          start_time: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          start_time?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       habit_logs: {
         Row: {
           completed_at: string | null
@@ -184,6 +214,36 @@ export type Database = {
         }
         Relationships: []
       }
+      todo_list: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          is_completed: boolean | null
+          priority: Database["public"]["Enums"]["priority_level"] | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -196,7 +256,7 @@ export type Database = {
       run_read_only_query: { Args: { query_text: string }; Returns: Json }
     }
     Enums: {
-      [_ in never]: never
+      priority_level: "Alta" | "Média" | "Baixa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -323,6 +383,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      priority_level: ["Alta", "Média", "Baixa"],
+    },
   },
 } as const
