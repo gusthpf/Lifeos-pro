@@ -1562,8 +1562,8 @@ function NexusTab() {
 
   return (
     <Card
-      className="border-primary/30 bg-black/70 font-mono"
-      style={{ boxShadow: "var(--shadow-glow)" }}
+      className="border-primary/30 font-mono"
+      style={{ boxShadow: "var(--shadow-glow)", background: "var(--nexus-surface)" }}
     >
       <CardHeader className="border-b border-primary/20">
         <CardTitle className="flex items-center gap-2 text-base text-primary">
