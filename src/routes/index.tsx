@@ -1629,7 +1629,10 @@ function NexusTab() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 border-t border-primary/20 bg-black/80 p-3">
+        <div
+          className="flex items-center gap-2 border-t border-primary/20 p-3"
+          style={{ background: "var(--nexus-surface-strong)" }}
+        >
           <span className="text-primary">$</span>
           <input
             value={input}
