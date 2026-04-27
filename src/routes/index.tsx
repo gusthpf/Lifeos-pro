@@ -509,12 +509,25 @@ function LifeCoachApp() {
   const navigate = useNavigate();
   const fullName = profile?.full_name?.trim() || username || "";
   const firstName = fullName ? fullName.split(/\s+/)[0] : "";
-  const greeting =
-    loading || !user
-      ? "Bem-vindo!"
-      : firstName
-        ? `Olá, ${firstName}`
-        : "Bem-vindo!";
+  const getTimeGreeting = () => {
+    // Hora atual no fuso America/Bahia
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Bahia",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date());
+    const hour = parseInt(hourStr, 10);
+    if (hour >= 5 && hour < 12) return { text: "bom dia", emoji: "☀️" };
+    if (hour >= 12 && hour < 18) return { text: "boa tarde", emoji: "🌅" };
+    return { text: "boa noite", emoji: "🌙" };
+  };
+  const greeting = (() => {
+    if (loading || !user) return "Bem-vindo!";
+    const { text, emoji } = getTimeGreeting();
+    if (firstName) return `Olá ${firstName}, ${text} ${emoji}`;
+    const capitalized = text.charAt(0).toUpperCase() + text.slice(1);
+    return `${capitalized} ${emoji}`;
+  })();
 
   // Redirect unauthenticated users to /auth once we know there's no session
   useEffect(() => {
