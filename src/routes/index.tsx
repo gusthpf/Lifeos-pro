@@ -512,6 +512,7 @@ function NocPanel() {
 function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
+  useTodayAppointmentsAlert();
   const fullName = profile?.full_name?.trim() || username || "";
   const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const getTimeGreeting = () => {
