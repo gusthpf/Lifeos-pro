@@ -2177,7 +2177,6 @@ function ManagementBar() {
 function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [xp, setXp] = useState("10");
   const [frequency, setFrequency] = useState<FrequencyType>("diario");
   const [duration, setDuration] = useState("4");
   const [target, setTarget] = useState("1");
@@ -2190,7 +2189,6 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
     const { error } = await supabase.from("habits").insert({
       title: title.trim(),
       category: category.trim() || null,
-      xp_reward: Number(xp) || 10,
       frequency_type: frequency,
       duration: Number(duration) || 0,
       target_per_period: Number(target) || 1,
@@ -2202,7 +2200,7 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     toast.success("Hábito criado");
-    setTitle(""); setCategory(""); setXp("10"); setFrequency("diario"); setDuration("4"); setTarget("1");
+    setTitle(""); setCategory(""); setFrequency("diario"); setDuration("4"); setTarget("1");
     onClose();
   }
 
