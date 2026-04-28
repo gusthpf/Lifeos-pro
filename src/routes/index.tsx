@@ -2276,7 +2276,6 @@ function EditHabitModal({
 }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [xp, setXp] = useState("10");
   const [frequency, setFrequency] = useState<FrequencyType>("diario");
   const [duration, setDuration] = useState("0");
   const [target, setTarget] = useState("1");
@@ -2286,7 +2285,6 @@ function EditHabitModal({
     if (habit) {
       setTitle(habit.title ?? "");
       setCategory(habit.category ?? "");
-      setXp(String(habit.xp_reward ?? 10));
       setFrequency(normalizeFrequency(habit.frequency_type));
       setDuration(String(habit.duration ?? 0));
       setTarget(String(habit.target_per_period ?? 1));
@@ -2299,7 +2297,6 @@ function EditHabitModal({
     const updates = {
       title: title.trim(),
       category: category.trim() || null,
-      xp_reward: Number(xp) || 10,
       frequency_type: frequency,
       duration: Number(duration) || 0,
       target_per_period: Number(target) || 1,
