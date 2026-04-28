@@ -288,3 +288,62 @@
 .rbc-theme .rbc-show-more { color: var(--primary); background: transparent; }
 .rbc-theme .rbc-time-slot { color: var(--muted-foreground); }
 .rbc-theme .rbc-current-time-indicator { background: var(--primary); height: 2px; }
+
+/* ===== XPStatus — Gamification v2.0 ===== */
+:root {
+  --xp-color: #059669;            /* Emerald 600 — light mode */
+  --xp-bg: #f8fafc;               /* Slate 50  — light mode */
+  --xp-track: #e2e8f0;            /* Slate 200 */
+  --xp-glow: 0 0 0 transparent;
+}
+.dark {
+  --xp-color: #00ff41;            /* Neon green — dark mode */
+  --xp-bg: #000000;               /* Black */
+  --xp-track: #0a1f12;            /* Deep green-black */
+  --xp-glow: 0 0 6px rgba(0, 255, 65, 0.65);
+}
+
+.xp-status {
+  background: var(--xp-bg);
+  border: 1px solid color-mix(in oklab, var(--xp-color) 35%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  min-width: 220px;
+}
+.xp-status__label,
+.xp-status__value {
+  color: var(--xp-color);
+  text-shadow: var(--xp-glow);
+}
+.xp-status__bar {
+  height: 3px;
+  width: 100%;
+  background: var(--xp-track);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.xp-status__fill {
+  height: 100%;
+  background: var(--xp-color);
+  box-shadow: var(--xp-glow);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* XP gain popup — high contrast on both themes */
+@keyframes xp-float {
+  0%   { transform: translateY(0);     opacity: 0; }
+  15%  { transform: translateY(-6px);  opacity: 1; }
+  80%  { transform: translateY(-28px); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+.xp-status__gain {
+  color: var(--xp-color);
+  background: var(--xp-bg);
+  border: 1px solid var(--xp-color);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-shadow: var(--xp-glow);
+  box-shadow: var(--xp-glow);
+  animation: xp-float 1.8s ease-out forwards;
+  white-space: nowrap;
+}
