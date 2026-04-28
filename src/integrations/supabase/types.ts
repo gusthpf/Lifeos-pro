@@ -50,6 +50,7 @@ export type Database = {
           habit_id: string | null
           id: string
           notes: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -57,6 +58,7 @@ export type Database = {
           habit_id?: string | null
           id?: string
           notes?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           habit_id?: string | null
           id?: string
           notes?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -85,6 +88,7 @@ export type Database = {
           id: string
           target_per_period: number | null
           title: string
+          updated_at: string | null
           user_id: string | null
           xp_reward: number | null
         }
@@ -96,6 +100,7 @@ export type Database = {
           id?: string
           target_per_period?: number | null
           title: string
+          updated_at?: string | null
           user_id?: string | null
           xp_reward?: number | null
         }
@@ -107,6 +112,7 @@ export type Database = {
           id?: string
           target_per_period?: number | null
           title?: string
+          updated_at?: string | null
           user_id?: string | null
           xp_reward?: number | null
         }
@@ -222,6 +228,7 @@ export type Database = {
           is_completed: boolean | null
           priority: Database["public"]["Enums"]["priority_level"] | null
           title: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -231,6 +238,7 @@ export type Database = {
           is_completed?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
           title: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -240,6 +248,7 @@ export type Database = {
           is_completed?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
           title?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []

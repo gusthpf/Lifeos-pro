@@ -14,21 +14,70 @@ export function XPStatus() {
   const [gains, setGains] = useState<XPGain[]>([]);
   const prevXpRef = useRef<number>(profile?.xp_total ?? 0);
   const gainIdRef = useRef(0);
+  const initializedRef = useRef(false);
 
-  // Sync local state when profile context changes
+  // Initial fetch — don't rely solely on AuthContext profile
   useEffect(() => {
-    if (profile) {
-      setXp(profile.xp_total ?? 0);
-      setLevel(profile.level ?? 1);
-      prevXpRef.current = profile.xp_total ?? 0;
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("xp_total, level")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const newXp = data.xp_total ?? 0;
+      const newLevel = data.level ?? 1;
+      setXp(newXp);
+      setLevel(newLevel);
+      prevXpRef.current = newXp;
+      initializedRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  // Sync local state when AuthContext profile changes (e.g. on first load)
+  useEffect(() => {
+    if (!profile) return;
+    const newXp = profile.xp_total ?? 0;
+    const newLevel = profile.level ?? 1;
+    // Only sync if we haven't received a more recent realtime update
+    if (!initializedRef.current) {
+      setXp(newXp);
+      setLevel(newLevel);
+      prevXpRef.current = newXp;
+      initializedRef.current = true;
     }
   }, [profile?.xp_total, profile?.level]);
 
-  // Realtime subscription on profiles row
+  // Realtime subscription on profiles row — fires on any UPDATE
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
+
+    const handleUpdate = (payload: any) => {
+      const next = payload.new as { xp_total: number | null; level: number | null };
+      const newXp = next?.xp_total ?? 0;
+      const newLevel = next?.level ?? 1;
+      const delta = newXp - prevXpRef.current;
+      if (delta > 0) {
+        const id = ++gainIdRef.current;
+        setGains((g) => [...g, { id, amount: delta }]);
+        setTimeout(() => {
+          setGains((g) => g.filter((x) => x.id !== id));
+        }, 1800);
+      }
+      prevXpRef.current = newXp;
+      setXp(newXp);
+      setLevel(newLevel);
+      // Keep AuthContext profile in sync (best-effort)
+      void refreshProfile();
+    };
+
     const channel = supabase
-      .channel(`profile-xp-${user.id}`)
+      .channel(`xp-realtime-${user.id}`)
       .on(
         "postgres_changes",
         {
@@ -37,26 +86,14 @@ export function XPStatus() {
           table: "profiles",
           filter: `id=eq.${user.id}`,
         },
-        (payload) => {
-          const next = payload.new as { xp_total: number | null; level: number | null };
-          const newXp = next.xp_total ?? 0;
-          const newLevel = next.level ?? 1;
-          const delta = newXp - prevXpRef.current;
-          if (delta > 0) {
-            const id = ++gainIdRef.current;
-            setGains((g) => [...g, { id, amount: delta }]);
-            setTimeout(() => {
-              setGains((g) => g.filter((x) => x.id !== id));
-            }, 1800);
-          }
-          prevXpRef.current = newXp;
-          setXp(newXp);
-          setLevel(newLevel);
-          // Keep AuthContext profile in sync
-          void refreshProfile();
-        },
+        handleUpdate,
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // eslint-disable-next-line no-console
+          console.debug("[XPStatus] Realtime subscribed for user", user.id);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);
