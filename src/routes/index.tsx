@@ -264,12 +264,23 @@ function NocPanel() {
         habit_id: match?.id ?? null,
         notes,
       });
-    setRegistering(false);
     if (error) {
+      setRegistering(false);
       toast.error("Falha ao registrar treino", { description: error.message });
       return;
     }
-    toast.success("Treino registrado", {
+
+    // Also persist to workouts table → triggers +50 XP automatically on the backend
+    const workoutType = customType || category || "Treino";
+    const { error: wErr } = await supabase
+      .from("workouts")
+      .insert({ user_id: user.id, workout_type: workoutType });
+    setRegistering(false);
+    if (wErr) {
+      toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
+      return;
+    }
+    toast.success("TREINO CONCLUÍDO: +50 XP de Performance Física", {
       description: notes,
     });
     setModalOpen(false);
