@@ -2225,25 +2225,22 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Label htmlFor="h-cat">Categoria</Label>
             <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="h-freq">Tipo</Label>
-              <select
-                id="h-freq"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              >
-                <option value="diario">Diário</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensal">Mensal</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="h-xp">XP por check-in</Label>
-              <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="h-freq">Tipo</Label>
+            <select
+              id="h-freq"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="diario">Diário</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+            </select>
           </div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span> (gerenciado pelo sistema)
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="h-dur">{durationLabel}</Label>
