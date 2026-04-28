@@ -264,12 +264,23 @@ function NocPanel() {
         habit_id: match?.id ?? null,
         notes,
       });
-    setRegistering(false);
     if (error) {
+      setRegistering(false);
       toast.error("Falha ao registrar treino", { description: error.message });
       return;
     }
-    toast.success("Treino registrado", {
+
+    // Also persist to workouts table → triggers +50 XP automatically on the backend
+    const workoutType = customType || category || "Treino";
+    const { error: wErr } = await supabase
+      .from("workouts")
+      .insert({ user_id: user.id, workout_type: workoutType });
+    setRegistering(false);
+    if (wErr) {
+      toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
+      return;
+    }
+    toast.success("TREINO CONCLUÍDO: +50 XP de Performance Física", {
       description: notes,
     });
     setModalOpen(false);
@@ -2166,7 +2177,6 @@ function ManagementBar() {
 function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [xp, setXp] = useState("10");
   const [frequency, setFrequency] = useState<FrequencyType>("diario");
   const [duration, setDuration] = useState("4");
   const [target, setTarget] = useState("1");
@@ -2179,7 +2189,6 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
     const { error } = await supabase.from("habits").insert({
       title: title.trim(),
       category: category.trim() || null,
-      xp_reward: Number(xp) || 10,
       frequency_type: frequency,
       duration: Number(duration) || 0,
       target_per_period: Number(target) || 1,
@@ -2191,7 +2200,7 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     toast.success("Hábito criado");
-    setTitle(""); setCategory(""); setXp("10"); setFrequency("diario"); setDuration("4"); setTarget("1");
+    setTitle(""); setCategory(""); setFrequency("diario"); setDuration("4"); setTarget("1");
     onClose();
   }
 
@@ -2216,25 +2225,22 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Label htmlFor="h-cat">Categoria</Label>
             <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="h-freq">Tipo</Label>
-              <select
-                id="h-freq"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              >
-                <option value="diario">Diário</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensal">Mensal</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="h-xp">XP por check-in</Label>
-              <Input id="h-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="h-freq">Tipo</Label>
+            <select
+              id="h-freq"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="diario">Diário</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+            </select>
           </div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span> (gerenciado pelo sistema)
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="h-dur">{durationLabel}</Label>
@@ -2270,7 +2276,6 @@ function EditHabitModal({
 }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [xp, setXp] = useState("10");
   const [frequency, setFrequency] = useState<FrequencyType>("diario");
   const [duration, setDuration] = useState("0");
   const [target, setTarget] = useState("1");
@@ -2280,7 +2285,6 @@ function EditHabitModal({
     if (habit) {
       setTitle(habit.title ?? "");
       setCategory(habit.category ?? "");
-      setXp(String(habit.xp_reward ?? 10));
       setFrequency(normalizeFrequency(habit.frequency_type));
       setDuration(String(habit.duration ?? 0));
       setTarget(String(habit.target_per_period ?? 1));
@@ -2293,7 +2297,6 @@ function EditHabitModal({
     const updates = {
       title: title.trim(),
       category: category.trim() || null,
-      xp_reward: Number(xp) || 10,
       frequency_type: frequency,
       duration: Number(duration) || 0,
       target_per_period: Number(target) || 1,
@@ -2325,25 +2328,22 @@ function EditHabitModal({
             <Label htmlFor="eh-cat">Categoria</Label>
             <Input id="eh-cat" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={50} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="eh-freq">Tipo</Label>
-              <select
-                id="eh-freq"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value as FrequencyType)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              >
-                <option value="diario">Diário</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensal">Mensal</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="eh-xp">XP por check-in</Label>
-              <Input id="eh-xp" type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eh-freq">Tipo</Label>
+            <select
+              id="eh-freq"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as FrequencyType)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="diario">Diário</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+            </select>
           </div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span> (gerenciado pelo sistema)
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="eh-dur">Duração</Label>
