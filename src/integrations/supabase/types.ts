@@ -253,6 +253,35 @@ export type Database = {
         }
         Relationships: []
       }
+      workouts: {
+        Row: {
+          created_at: string | null
+          id: string
+          user_id: string | null
+          workout_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+          workout_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+          workout_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
