@@ -53,6 +53,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
 import { CalendarDays } from "lucide-react";
 import {
