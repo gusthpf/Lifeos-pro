@@ -672,16 +672,60 @@ function DojoTab() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  const reload = async () => {
+    const [{ data: h }, { data: logs }] = await Promise.all([
+      supabase.from("habits").select("id,title,category,xp_reward").order("created_at", { ascending: false }),
+      supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
+    ]);
+    setHabits((h ?? []) as Habit[]);
+    setCompletedToday(new Set((logs ?? []).map((l: any) => l.habit_id).filter(Boolean)));
+  };
+
   useEffect(() => {
-    (async () => {
-      const [{ data: h }, { data: logs }] = await Promise.all([
-        supabase.from("habits").select("id,title,category,xp_reward"),
-        supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
-      ]);
-      setHabits((h ?? []) as Habit[]);
-      setCompletedToday(new Set((logs ?? []).map((l: any) => l.habit_id).filter(Boolean)));
-    })();
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
+
+  // Realtime: react to inserts/updates/deletes on habits and habit_logs
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`dojo-realtime-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "habits", filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as Habit;
+            setHabits((curr) => {
+              const list = curr ?? [];
+              if (list.some((h) => h.id === row.id)) return list;
+              return [row, ...list];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const row = payload.new as Habit;
+            setHabits((curr) => (curr ?? []).map((h) => (h.id === row.id ? { ...h, ...row } : h)));
+          } else if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as any)?.id;
+            if (oldId) setHabits((curr) => (curr ?? []).filter((h) => h.id !== oldId));
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "habit_logs", filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new as { habit_id: string; completed_at: string };
+          if (row?.completed_at === today && row.habit_id) {
+            setCompletedToday((s) => new Set(s).add(row.habit_id));
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, today]);
 
   async function checkIn(habit: Habit) {
     if (completedToday.has(habit.id)) return;
