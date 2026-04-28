@@ -53,6 +53,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
+import { CalendarDays } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -510,6 +512,7 @@ function NocPanel() {
 function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
+  useTodayAppointmentsAlert();
   const fullName = profile?.full_name?.trim() || username || "";
   const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const getTimeGreeting = () => {
@@ -601,7 +604,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -610,6 +613,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="todo" className="gap-2">
               <ListTodo className="h-4 w-4" /> To-do
+            </TabsTrigger>
+            <TabsTrigger value="calendario" className="gap-2">
+              <CalendarDays className="h-4 w-4" /> Calendário
             </TabsTrigger>
             <TabsTrigger value="reflexao" className="gap-2">
               <BookOpenText className="h-4 w-4" /> Reflexão
@@ -630,6 +636,11 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="todo" className="mt-6">
             <TodoTab />
+          </TabsContent>
+          <TabsContent value="calendario" className="mt-6">
+            <div className="-mx-6 px-2 sm:px-6">
+              <CalendarTab />
+            </div>
           </TabsContent>
           <TabsContent value="reflexao" className="mt-6">
             <ReflectionTab />
