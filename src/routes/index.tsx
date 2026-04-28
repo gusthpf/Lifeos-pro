@@ -2175,6 +2175,7 @@ function ManagementBar() {
 }
 
 function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // XP fixo (+30) gerenciado pelo backend
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [frequency, setFrequency] = useState<FrequencyType>("diario");
