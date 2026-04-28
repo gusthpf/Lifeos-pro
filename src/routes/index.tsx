@@ -130,7 +130,7 @@ type Profile = {
   last_access: string | null;
 };
 
-const XP_PER_LEVEL = 500;
+const XP_PER_LEVEL = 1000;
 
 /* ============ NOC DASHBOARD ============ */
 function getBahiaDateISO(): string {
