@@ -274,7 +274,7 @@ function NocPanel() {
     const workoutType = customType || category || "Treino";
     const { error: wErr } = await supabase
       .from("workouts")
-      .insert({ user_id: user.id, workout_type: workoutType });
+      .insert({ user_id: user.id, workout_type: workoutType, category: "Treino" });
     setRegistering(false);
     if (wErr) {
       toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
@@ -680,12 +680,13 @@ function DojoTab() {
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Habit | null>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useBahiaToday();
 
   const reload = async () => {
     const [{ data: h }, { data: logs }] = await Promise.all([
-      supabase.from("habits").select("id,title,category,xp_reward").order("created_at", { ascending: false }),
+      supabase.from("habits").select("id,title,category,xp_reward,frequency_type,duration,target_per_period").order("created_at", { ascending: false }),
       supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
     ]);
     setHabits((h ?? []) as Habit[]);
@@ -779,103 +780,172 @@ function DojoTab() {
 
   if (habits === null) return <SkeletonGrid />;
 
+  const tzNotice = (
+    <div className="mb-4 flex items-start gap-2 rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+      <span>
+        Hábitos com frequência &gt; 1 dia são resetados automaticamente às{" "}
+        <span className="font-mono text-foreground">00:00 (Horário de Salvador)</span>.
+      </span>
+    </div>
+  );
+
   if (habits.length === 0)
     return (
-      <EmptyState
-        icon={<Swords className="h-8 w-8" />}
-        title="Nenhum hábito no dojo"
-        description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
-      />
+      <>
+        {tzNotice}
+        <EmptyState
+          icon={<Swords className="h-8 w-8" />}
+          title="Nenhum hábito no dojo"
+          description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
+        />
+      </>
     );
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {habits.map((habit) => {
-        const done = completedToday.has(habit.id);
-        const isPending = pending === habit.id;
-        return (
-          <Card
-            key={habit.id}
-            className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
-            style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base font-semibold leading-tight">
-                  {habit.title}
-                </CardTitle>
-                <Badge variant="secondary" className="shrink-0 gap-1">
-                  <Zap className="h-3 w-3" /> {habit.xp_reward ?? 10}
-                </Badge>
-              </div>
-              {habit.category && (
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {habit.category}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => checkIn(habit)}
-                  disabled={done || isPending}
-                  className="flex-1"
-                  style={
-                    done
-                      ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
-                      : undefined
-                  }
-                >
-                  {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : done ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" /> Concluído hoje
-                    </>
-                  ) : (
-                    <>
-                      <Flame className="mr-2 h-4 w-4" /> Check-in
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => deleteHabit(habit)}
-                  disabled={deleting === habit.id}
-                  aria-label={`Excluir ${habit.title}`}
-                  title="Excluir hábito"
-                  className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  {deleting === habit.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <>
+      {tzNotice}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {habits.map((habit) => {
+          const done = completedToday.has(habit.id);
+          const isPending = pending === habit.id;
+          return (
+            <Card
+              key={habit.id}
+              className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
+              style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-base font-semibold leading-tight">
+                    {habit.title}
+                  </CardTitle>
+                  <Badge variant="secondary" className="shrink-0 gap-1">
+                    <Zap className="h-3 w-3" /> {habit.xp_reward ?? 10}
+                  </Badge>
+                </div>
+                {habit.category && (
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {habit.category}
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => checkIn(habit)}
+                    disabled={done || isPending}
+                    className="flex-1"
+                    style={
+                      done
+                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
+                        : undefined
+                    }
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : done ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" /> Concluído hoje
+                      </>
+                    ) : (
+                      <>
+                        <Flame className="mr-2 h-4 w-4" /> Check-in
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditing(habit)}
+                    aria-label={`Editar ${habit.title}`}
+                    title="Editar hábito"
+                    className="shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => deleteHabit(habit)}
+                    disabled={deleting === habit.id}
+                    aria-label={`Excluir ${habit.title}`}
+                    title="Excluir hábito"
+                    className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    {deleting === habit.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      <EditHabitModal
+        habit={editing}
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        onSaved={(updated) =>
+          setHabits((curr) => (curr ?? []).map((h) => (h.id === updated.id ? updated : h)))
+        }
+      />
+    </>
   );
 }
 
 /* ============ ESTRATÉGIA ============ */
 function StrategyTab() {
+  const { user } = AuthCtx.useAuth();
   const [goals, setGoals] = useState<Goal[] | null>(null);
   const [busy, setBusy] = useState<{ id: string; action: "complete" | "delete" } | null>(null);
+  const [editing, setEditing] = useState<Goal | null>(null);
+
+  const reload = async () => {
+    const { data } = await supabase
+      .from("life_goals")
+      .select("id,objective,horizon,status,created_at")
+      .order("created_at", { ascending: false });
+    setGoals((data ?? []) as Goal[]);
+  };
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("life_goals")
-        .select("id,objective,horizon,status,created_at")
-        .order("created_at", { ascending: false });
-      setGoals((data ?? []) as Goal[]);
-    })();
+    void reload();
   }, []);
+
+  // Realtime: react to inserts/updates/deletes on life_goals
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`strategy-realtime-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "life_goals", filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as Goal;
+            setGoals((curr) => {
+              const list = curr ?? [];
+              if (list.some((g) => g.id === row.id)) return list;
+              return [row, ...list];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const row = payload.new as Goal;
+            setGoals((curr) => (curr ?? []).map((g) => (g.id === row.id ? { ...g, ...row } : g)));
+          } else if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as any)?.id;
+            if (oldId) setGoals((curr) => (curr ?? []).filter((g) => g.id !== oldId));
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   async function completeGoal(g: Goal) {
     if (g.status === "concluido") return;
@@ -892,7 +962,9 @@ function StrategyTab() {
     setGoals((curr) =>
       (curr ?? []).map((x) => (x.id === g.id ? { ...x, status: "concluido" } : x)),
     );
-    toast.success("Meta concluída", { description: `"${g.objective}" finalizada.` });
+    toast.success("ESTRATÉGIA CONCLUÍDA: +50 XP", {
+      description: `"${g.objective}" finalizada.`,
+    });
   }
 
   async function deleteGoal(g: Goal) {
@@ -925,78 +997,97 @@ function StrategyTab() {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {goals.map((g) => {
-        const done = g.status === "concluido";
-        const isCompleting = busy?.id === g.id && busy.action === "complete";
-        const isDeleting = busy?.id === g.id && busy.action === "delete";
-        return (
-          <Card
-            key={g.id}
-            className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
-              done ? "opacity-70" : ""
-            }`}
-            style={{ boxShadow: "var(--shadow-card)" }}
-          >
-            <div
-              className="absolute inset-x-0 top-0 h-1"
-              style={{ background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso }}
-            />
-            <CardHeader>
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle
-                  className={`text-lg leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
-                >
-                  {g.objective}
-                </CardTitle>
-                <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {g.horizon && (
-                  <Badge variant="outline" className="border-accent/40 text-accent">
-                    {g.horizon}
-                  </Badge>
-                )}
-                <Badge variant="secondary">{(g.status ?? "em_progresso").replace("_", " ")}</Badge>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant={done ? "secondary" : "default"}
-                  onClick={() => completeGoal(g)}
-                  disabled={done || isCompleting}
-                  className="flex-1 gap-2"
-                >
-                  {isCompleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+    <>
+      <div className="grid gap-4 md:grid-cols-2">
+        {goals.map((g) => {
+          const done = g.status === "concluido";
+          const isCompleting = busy?.id === g.id && busy.action === "complete";
+          const isDeleting = busy?.id === g.id && busy.action === "delete";
+          return (
+            <Card
+              key={g.id}
+              className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
+                done ? "opacity-70" : ""
+              }`}
+              style={{ boxShadow: "var(--shadow-card)" }}
+            >
+              <div
+                className="absolute inset-x-0 top-0 h-1"
+                style={{ background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso }}
+              />
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <CardTitle
+                    className={`text-lg leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
+                  >
+                    {g.objective}
+                  </CardTitle>
+                  <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {g.horizon && (
+                    <Badge variant="outline" className="border-accent/40 text-accent">
+                      {g.horizon}
+                    </Badge>
                   )}
-                  {done ? "Concluída" : "Concluir"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => deleteGoal(g)}
-                  disabled={isDeleting}
-                  className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  aria-label={`Excluir ${g.objective}`}
-                >
-                  {isDeleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Excluir
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+                  <Badge variant="secondary">{(g.status ?? "em_progresso").replace("_", " ")}</Badge>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant={done ? "secondary" : "default"}
+                    onClick={() => completeGoal(g)}
+                    disabled={done || isCompleting}
+                    className="flex-1 gap-2"
+                  >
+                    {isCompleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    {done ? "Concluída" : "Concluir"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditing(g)}
+                    aria-label={`Editar ${g.objective}`}
+                    title="Editar estratégia"
+                    className="gap-2"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteGoal(g)}
+                    disabled={isDeleting}
+                    className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Excluir ${g.objective}`}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      <EditGoalModal
+        goal={editing}
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        onSaved={(updated) =>
+          setGoals((curr) => (curr ?? []).map((g) => (g.id === updated.id ? updated : g)))
+        }
+      />
+    </>
   );
 }
 
@@ -2475,5 +2566,98 @@ function EmptyState({
         <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function EditGoalModal({
+  goal,
+  open,
+  onClose,
+  onSaved,
+}: {
+  goal: Goal | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: (updated: Goal) => void;
+}) {
+  const [objective, setObjective] = useState("");
+  const [horizon, setHorizon] = useState<GoalHorizon>("medio");
+  const [status, setStatus] = useState("em_progresso");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (goal) {
+      setObjective(goal.objective ?? "");
+      setHorizon(normalizeHorizon(goal.horizon));
+      setStatus(goal.status ?? "em_progresso");
+    }
+  }, [goal]);
+
+  async function submit() {
+    if (!goal || !objective.trim()) return;
+    setSaving(true);
+    const updates = {
+      objective: objective.trim(),
+      horizon,
+      status,
+    };
+    const { error } = await supabase.from("life_goals").update(updates).eq("id", goal.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao editar estratégia", { description: error.message });
+      return;
+    }
+    toast.success("Estratégia atualizada");
+    onSaved({ ...goal, ...updates });
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Estratégia</DialogTitle>
+          <DialogDescription>Atualize objetivo, horizonte ou status.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-obj">Objetivo</Label>
+            <Textarea id="eg-obj" value={objective} onChange={(e) => setObjective(e.target.value)} maxLength={500} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-hor">Horizonte</Label>
+            <select
+              id="eg-hor"
+              value={horizon}
+              onChange={(e) => setHorizon(e.target.value as GoalHorizon)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="curto">Curto Prazo</option>
+              <option value="medio">Médio Prazo</option>
+              <option value="longo">Longo Prazo</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-st">Status</Label>
+            <select
+              id="eg-st"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="em_progresso">Em progresso</option>
+              <option value="concluido">Concluído</option>
+              <option value="pausado">Pausado</option>
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !objective.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
