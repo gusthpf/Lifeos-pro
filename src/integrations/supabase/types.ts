@@ -285,18 +285,21 @@ export type Database = {
       }
       workouts: {
         Row: {
+          category: string
           created_at: string | null
           id: string
           user_id: string | null
           workout_type: string | null
         }
         Insert: {
+          category?: string
           created_at?: string | null
           id?: string
           user_id?: string | null
           workout_type?: string | null
         }
         Update: {
+          category?: string
           created_at?: string | null
           id?: string
           user_id?: string | null
