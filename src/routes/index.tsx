@@ -274,7 +274,7 @@ function NocPanel() {
     const workoutType = customType || category || "Treino";
     const { error: wErr } = await supabase
       .from("workouts")
-      .insert({ user_id: user.id, workout_type: workoutType });
+      .insert({ user_id: user.id, workout_type: workoutType, category: "Treino" });
     setRegistering(false);
     if (wErr) {
       toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
