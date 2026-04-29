@@ -780,86 +780,120 @@ function DojoTab() {
 
   if (habits === null) return <SkeletonGrid />;
 
+  const tzNotice = (
+    <div className="mb-4 flex items-start gap-2 rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+      <span>
+        Hábitos com frequência &gt; 1 dia são resetados automaticamente às{" "}
+        <span className="font-mono text-foreground">00:00 (Horário de Salvador)</span>.
+      </span>
+    </div>
+  );
+
   if (habits.length === 0)
     return (
-      <EmptyState
-        icon={<Swords className="h-8 w-8" />}
-        title="Nenhum hábito no dojo"
-        description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
-      />
+      <>
+        {tzNotice}
+        <EmptyState
+          icon={<Swords className="h-8 w-8" />}
+          title="Nenhum hábito no dojo"
+          description="Vamos começar inserindo um novo hábito no botão Novo Hábito."
+        />
+      </>
     );
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {habits.map((habit) => {
-        const done = completedToday.has(habit.id);
-        const isPending = pending === habit.id;
-        return (
-          <Card
-            key={habit.id}
-            className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
-            style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base font-semibold leading-tight">
-                  {habit.title}
-                </CardTitle>
-                <Badge variant="secondary" className="shrink-0 gap-1">
-                  <Zap className="h-3 w-3" /> {habit.xp_reward ?? 10}
-                </Badge>
-              </div>
-              {habit.category && (
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {habit.category}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => checkIn(habit)}
-                  disabled={done || isPending}
-                  className="flex-1"
-                  style={
-                    done
-                      ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
-                      : undefined
-                  }
-                >
-                  {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : done ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" /> Concluído hoje
-                    </>
-                  ) : (
-                    <>
-                      <Flame className="mr-2 h-4 w-4" /> Check-in
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => deleteHabit(habit)}
-                  disabled={deleting === habit.id}
-                  aria-label={`Excluir ${habit.title}`}
-                  title="Excluir hábito"
-                  className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  {deleting === habit.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <>
+      {tzNotice}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {habits.map((habit) => {
+          const done = completedToday.has(habit.id);
+          const isPending = pending === habit.id;
+          return (
+            <Card
+              key={habit.id}
+              className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
+              style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-base font-semibold leading-tight">
+                    {habit.title}
+                  </CardTitle>
+                  <Badge variant="secondary" className="shrink-0 gap-1">
+                    <Zap className="h-3 w-3" /> {habit.xp_reward ?? 10}
+                  </Badge>
+                </div>
+                {habit.category && (
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {habit.category}
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => checkIn(habit)}
+                    disabled={done || isPending}
+                    className="flex-1"
+                    style={
+                      done
+                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
+                        : undefined
+                    }
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : done ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" /> Concluído hoje
+                      </>
+                    ) : (
+                      <>
+                        <Flame className="mr-2 h-4 w-4" /> Check-in
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditing(habit)}
+                    aria-label={`Editar ${habit.title}`}
+                    title="Editar hábito"
+                    className="shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => deleteHabit(habit)}
+                    disabled={deleting === habit.id}
+                    aria-label={`Excluir ${habit.title}`}
+                    title="Excluir hábito"
+                    className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    {deleting === habit.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      <EditHabitModal
+        habit={editing}
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        onSaved={(updated) =>
+          setHabits((curr) => (curr ?? []).map((h) => (h.id === updated.id ? updated : h)))
+        }
+      />
+    </>
   );
 }
 
