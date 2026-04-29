@@ -2568,3 +2568,96 @@ function EmptyState({
     </Card>
   );
 }
+
+function EditGoalModal({
+  goal,
+  open,
+  onClose,
+  onSaved,
+}: {
+  goal: Goal | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: (updated: Goal) => void;
+}) {
+  const [objective, setObjective] = useState("");
+  const [horizon, setHorizon] = useState<GoalHorizon>("medio");
+  const [status, setStatus] = useState("em_progresso");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (goal) {
+      setObjective(goal.objective ?? "");
+      setHorizon(normalizeHorizon(goal.horizon));
+      setStatus(goal.status ?? "em_progresso");
+    }
+  }, [goal]);
+
+  async function submit() {
+    if (!goal || !objective.trim()) return;
+    setSaving(true);
+    const updates = {
+      objective: objective.trim(),
+      horizon,
+      status,
+    };
+    const { error } = await supabase.from("life_goals").update(updates).eq("id", goal.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao editar estratégia", { description: error.message });
+      return;
+    }
+    toast.success("Estratégia atualizada");
+    onSaved({ ...goal, ...updates });
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Estratégia</DialogTitle>
+          <DialogDescription>Atualize objetivo, horizonte ou status.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-obj">Objetivo</Label>
+            <Textarea id="eg-obj" value={objective} onChange={(e) => setObjective(e.target.value)} maxLength={500} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-hor">Horizonte</Label>
+            <select
+              id="eg-hor"
+              value={horizon}
+              onChange={(e) => setHorizon(e.target.value as GoalHorizon)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="curto">Curto Prazo</option>
+              <option value="medio">Médio Prazo</option>
+              <option value="longo">Longo Prazo</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="eg-st">Status</Label>
+            <select
+              id="eg-st"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="em_progresso">Em progresso</option>
+              <option value="concluido">Concluído</option>
+              <option value="pausado">Pausado</option>
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !objective.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
