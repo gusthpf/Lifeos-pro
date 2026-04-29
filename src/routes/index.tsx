@@ -682,7 +682,7 @@ function DojoTab() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editing, setEditing] = useState<Habit | null>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useBahiaToday();
 
   const reload = async () => {
     const [{ data: h }, { data: logs }] = await Promise.all([
