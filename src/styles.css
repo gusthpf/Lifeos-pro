@@ -159,6 +159,17 @@
   --gradient-bg: radial-gradient(ellipse at top, oklch(0.98 0.01 250) 0%, oklch(0.95 0.015 250) 60%);
   --shadow-glow: 0 10px 30px -12px oklch(0.55 0.18 255 / 0.35);
   --shadow-card: 0 8px 24px -16px oklch(0.2 0.05 270 / 0.25);
+
+  /* NOC Audit Log — light theme */
+  --audit-bg: oklch(0.98 0.005 250);
+  --audit-surface: oklch(0.96 0.008 250);
+  --audit-surface-strong: oklch(0.94 0.01 250);
+  --audit-border: oklch(0.88 0.012 250);
+  --audit-fg: oklch(0.25 0.03 260);
+  --audit-fg-muted: oklch(0.5 0.02 260);
+  --audit-fg-subtle: oklch(0.62 0.02 260);
+  --audit-accent: oklch(0.55 0.17 155);
+  --audit-accent-soft: oklch(0.55 0.17 155 / 0.12);
 }
 
 /* AI Life Coach — neon-on-obsidian aesthetic (dark mode) */
