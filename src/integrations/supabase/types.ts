@@ -198,6 +198,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          email: string | null
           full_name: string | null
           id: string
           last_access: string | null
@@ -205,6 +206,7 @@ export type Database = {
           xp_total: number | null
         }
         Insert: {
+          email?: string | null
           full_name?: string | null
           id: string
           last_access?: string | null
@@ -212,6 +214,7 @@ export type Database = {
           xp_total?: number | null
         }
         Update: {
+          email?: string | null
           full_name?: string | null
           id?: string
           last_access?: string | null
@@ -287,21 +290,27 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          exercise_name: string | null
           id: string
+          intensity_level: string | null
           user_id: string | null
           workout_type: string | null
         }
         Insert: {
           category?: string
           created_at?: string | null
+          exercise_name?: string | null
           id?: string
+          intensity_level?: string | null
           user_id?: string | null
           workout_type?: string | null
         }
         Update: {
           category?: string
           created_at?: string | null
+          exercise_name?: string | null
           id?: string
+          intensity_level?: string | null
           user_id?: string | null
           workout_type?: string | null
         }
