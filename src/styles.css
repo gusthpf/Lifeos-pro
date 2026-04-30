@@ -216,6 +216,17 @@
   --gradient-bg: radial-gradient(ellipse at top, oklch(0.22 0.05 280) 0%, oklch(0.13 0.02 270) 60%);
   --shadow-glow: 0 0 40px -8px oklch(0.78 0.18 155 / 0.4);
   --shadow-card: 0 8px 32px -12px oklch(0 0 0 / 0.6);
+
+  /* NOC Audit Log — dark theme (terminal NOC) */
+  --audit-bg: #020617;
+  --audit-surface: #0b1220;
+  --audit-surface-strong: #0b1220;
+  --audit-border: #1e293b;
+  --audit-fg: #e2e8f0;
+  --audit-fg-muted: #94a3b8;
+  --audit-fg-subtle: #64748b;
+  --audit-accent: var(--noc-online);
+  --audit-accent-soft: rgba(16, 185, 129, 0.12);
 }
 
 @layer base {
