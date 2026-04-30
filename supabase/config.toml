@@ -1,7 +1,4 @@
 project_id = "wnbhvsogbjnjrtmgndoi"
 
-[functions.coach-analyze]
-verify_jwt = false
-
 [functions.nexus-chat]
 verify_jwt = false
