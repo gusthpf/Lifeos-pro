@@ -16,10 +16,32 @@ Deno.serve(async (req) => {
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Authenticate the caller — required to access private journal/habit data.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: userData, error: userErr } = await sb.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = userData.user.id;
 
     // Window: last 45 days
     const since = new Date();
@@ -31,13 +53,15 @@ Deno.serve(async (req) => {
       sb
         .from("journal")
         .select("content,sentiment,created_at")
+        .eq("user_id", userId)
         .gte("created_at", sinceISO)
         .order("created_at", { ascending: false })
         .limit(30),
-      sb.from("habits").select("id,title,category,xp_reward"),
+      sb.from("habits").select("id,title,category,xp_reward").eq("user_id", userId),
       sb
         .from("habit_logs")
         .select("habit_id,completed_at")
+        .eq("user_id", userId)
         .gte("completed_at", sinceDate),
     ]);
 

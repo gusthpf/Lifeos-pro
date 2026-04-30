@@ -2329,7 +2329,6 @@ function NexusTab() {
 
     if (user_id) {
       const { error: rpcErr } = await supabase.rpc("adicionar_xp", {
-        user_id_input: user_id,
         xp_ganho: 25,
       });
       if (rpcErr) console.warn("XP RPC error:", rpcErr.message);

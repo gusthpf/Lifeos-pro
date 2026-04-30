@@ -335,10 +335,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      adicionar_xp: {
-        Args: { user_id_input: string; xp_ganho: number }
-        Returns: undefined
-      }
+      adicionar_xp: { Args: { xp_ganho: number }; Returns: undefined }
       run_read_only_query: { Args: { query_text: string }; Returns: Json }
     }
     Enums: {
