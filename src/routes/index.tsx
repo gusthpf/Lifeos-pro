@@ -49,6 +49,11 @@ import {
   BookMarked,
   ListTodo,
   Archive,
+  Radar,
+  Clock,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
