@@ -277,9 +277,18 @@ function NocPanel() {
 
     // Also persist to workouts table → triggers +50 XP automatically on the backend
     const workoutType = customType || category || "Treino";
+    const durationMin = parseInt(duration, 10);
     const { error: wErr } = await supabase
       .from("workouts")
-      .insert({ user_id: user.id, workout_type: workoutType, category: "Treino" });
+      .insert({
+        user_id: user.id,
+        workout_type: workoutType,
+        category: "Treino",
+        duration_minutes: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : 0,
+        xp_earned: 50,
+        intensity_level: intensity || null,
+        exercise_name: focus || null,
+      });
     setRegistering(false);
     if (wErr) {
       toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
