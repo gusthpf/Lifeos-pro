@@ -49,6 +49,11 @@ import {
   BookMarked,
   ListTodo,
   Archive,
+  Radar,
+  Clock,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
@@ -272,9 +277,18 @@ function NocPanel() {
 
     // Also persist to workouts table → triggers +50 XP automatically on the backend
     const workoutType = customType || category || "Treino";
+    const durationMin = parseInt(duration, 10);
     const { error: wErr } = await supabase
       .from("workouts")
-      .insert({ user_id: user.id, workout_type: workoutType, category: "Treino" });
+      .insert({
+        user_id: user.id,
+        workout_type: workoutType,
+        category: "Treino",
+        duration_minutes: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : 0,
+        xp_earned: 50,
+        intensity_level: intensity || null,
+        exercise_name: focus || null,
+      });
     setRegistering(false);
     if (wErr) {
       toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
@@ -517,6 +531,231 @@ function NocPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NocAuditLog />
+    </div>
+  );
+}
+
+/* ============ NOC AUDIT LOG (v1.9) ============ */
+type WorkoutRow = {
+  id: string;
+  user_id: string | null;
+  workout_type: string | null;
+  category: string | null;
+  exercise_name: string | null;
+  intensity_level: string | null;
+  duration_minutes: number | null;
+  xp_earned: number | null;
+  created_at: string | null;
+};
+
+type AuditFilter = "7d" | "month" | "all";
+
+function NocAuditLog() {
+  const { user } = AuthCtx.useAuth();
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<WorkoutRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<AuditFilter>("all");
+
+  useEffect(() => {
+    if (!user || !open) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("id,user_id,workout_type,category,exercise_name,intensity_level,duration_minutes,xp_earned,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (active) {
+        if (!error && data) setRows(data as WorkoutRow[]);
+        setLoading(false);
+      }
+    })();
+    const channel = supabase
+      .channel(`noc-audit-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setRows((prev) => [payload.new as WorkoutRow, ...prev]);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setRows((prev) => prev.filter((r) => r.id !== (payload.old as WorkoutRow).id));
+        },
+      )
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user, open]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return rows;
+    const now = Date.now();
+    const cutoff =
+      filter === "7d"
+        ? now - 7 * 24 * 60 * 60 * 1000
+        : new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    return rows.filter((r) => r.created_at && new Date(r.created_at).getTime() >= cutoff);
+  }, [rows, filter]);
+
+  const totals = useMemo(() => {
+    const minutes = filtered.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
+    const xp = filtered.reduce((s, r) => s + (r.xp_earned ?? 0), 0);
+    return { minutes, xp, sessions: filtered.length };
+  }, [filtered]);
+
+  const fmtUptime = (m: number) => {
+    if (!m) return "0h 00m";
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h}h ${String(mm).padStart(2, "0")}m`;
+  };
+  const fmtTs = (iso: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const yy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${dd}/${mo}/${yy} ${hh}:${mi}`;
+  };
+
+  return (
+    <div
+      className="border-t font-mono text-sm"
+      style={{ borderColor: "var(--noc-online)", background: "#020617", color: "#e2e8f0" }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-2 text-left text-[11px] uppercase tracking-widest transition-colors hover:bg-[#0b1220]"
+        style={{ color: "var(--noc-online)" }}
+      >
+        <span className="flex items-center gap-2">
+          <History className="h-3.5 w-3.5" />
+          NOC // WORKOUT AUDIT LOG
+        </span>
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+
+      {open && (
+        <div className="space-y-3 px-4 pb-4 pt-2">
+          {/* KPIs */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <KpiCard label="Uptime de Treino" value={fmtUptime(totals.minutes)} />
+            <KpiCard label="Sessões Registradas" value={String(totals.sessions)} />
+            <KpiCard label="XP Acumulado NOC" value={`+${totals.xp}`} accent />
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              ["7d", "Últimos 7 dias"],
+              ["month", "Este Mês"],
+              ["all", "Log Completo"],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFilter(k)}
+                className="rounded-sm border px-2.5 py-1 text-[11px] uppercase tracking-wider transition-colors"
+                style={{
+                  borderColor: filter === k ? "var(--noc-online)" : "#1e293b",
+                  background: filter === k ? "rgba(16,185,129,0.12)" : "transparent",
+                  color: filter === k ? "var(--noc-online)" : "#94a3b8",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tabela */}
+          <div
+            className="overflow-hidden rounded-sm border"
+            style={{ borderColor: "#1e293b" }}
+          >
+            {loading ? (
+              <div className="flex items-center gap-2 px-3 py-6 text-xs text-slate-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                $ fetching workouts...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-3 py-10 text-center text-xs text-slate-400">
+                <Radar className="h-8 w-8 animate-pulse" style={{ color: "var(--noc-online)" }} />
+                <span>Aguardando telemetria de performance...</span>
+              </div>
+            ) : (
+              <div className="max-h-[420px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-[#0b1220] text-[10px] uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-normal">Timestamp</th>
+                      <th className="px-3 py-2 text-left font-normal">Evento</th>
+                      <th className="px-3 py-2 text-left font-normal">Duração</th>
+                      <th className="px-3 py-2 text-right font-normal">Recompensa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r) => {
+                      const tag = r.workout_type || r.category || "TREINO";
+                      const dur = r.duration_minutes ?? 0;
+                      return (
+                        <tr key={r.id} className="border-t" style={{ borderColor: "#1e293b" }}>
+                          <td className="px-3 py-2 text-slate-400">{fmtTs(r.created_at)}</td>
+                          <td className="px-3 py-2">
+                            <span className="text-slate-500">TREINO_DETECTADO</span>{" "}
+                            <span style={{ color: "var(--noc-online)" }}>· {tag.toUpperCase()}</span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] text-slate-300"
+                              style={{ borderColor: "#1e293b", background: "#0b1220" }}
+                            >
+                              <Clock className="h-3 w-3" />
+                              {dur > 0 ? `${dur} min` : "—"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold" style={{ color: "#10b981" }}>
+                            +{r.xp_earned ?? 0} XP
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KpiCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div
+      className="rounded-sm border px-3 py-2"
+      style={{ borderColor: "#1e293b", background: "#0b1220" }}
+    >
+      <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
+      <div
+        className="mt-0.5 text-lg font-bold tracking-wider"
+        style={{ color: accent ? "#10b981" : "#e2e8f0" }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
