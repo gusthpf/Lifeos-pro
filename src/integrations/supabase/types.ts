@@ -290,29 +290,35 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          duration_minutes: number
           exercise_name: string | null
           id: string
           intensity_level: string | null
           user_id: string | null
           workout_type: string | null
+          xp_earned: number
         }
         Insert: {
           category?: string
           created_at?: string | null
+          duration_minutes?: number
           exercise_name?: string | null
           id?: string
           intensity_level?: string | null
           user_id?: string | null
           workout_type?: string | null
+          xp_earned?: number
         }
         Update: {
           category?: string
           created_at?: string | null
+          duration_minutes?: number
           exercise_name?: string | null
           id?: string
           intensity_level?: string | null
           user_id?: string | null
           workout_type?: string | null
+          xp_earned?: number
         }
         Relationships: [
           {
