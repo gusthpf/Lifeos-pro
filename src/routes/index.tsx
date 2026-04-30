@@ -633,13 +633,19 @@ function NocAuditLog() {
   return (
     <div
       className="border-t font-mono text-sm"
-      style={{ borderColor: "var(--noc-online)", background: "#020617", color: "#e2e8f0" }}
+      style={{
+        borderColor: "var(--audit-border)",
+        background: "var(--audit-bg)",
+        color: "var(--audit-fg)",
+      }}
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-2 text-left text-[11px] uppercase tracking-widest transition-colors hover:bg-[#0b1220]"
-        style={{ color: "var(--noc-online)" }}
+        className="flex w-full items-center justify-between px-4 py-2 text-left text-[11px] uppercase tracking-widest transition-colors"
+        style={{ color: "var(--audit-accent)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--audit-surface)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
         <span className="flex items-center gap-2">
           <History className="h-3.5 w-3.5" />
@@ -670,9 +676,9 @@ function NocAuditLog() {
                 onClick={() => setFilter(k)}
                 className="rounded-sm border px-2.5 py-1 text-[11px] uppercase tracking-wider transition-colors"
                 style={{
-                  borderColor: filter === k ? "var(--noc-online)" : "#1e293b",
-                  background: filter === k ? "rgba(16,185,129,0.12)" : "transparent",
-                  color: filter === k ? "var(--noc-online)" : "#94a3b8",
+                  borderColor: filter === k ? "var(--audit-accent)" : "var(--audit-border)",
+                  background: filter === k ? "var(--audit-accent-soft)" : "transparent",
+                  color: filter === k ? "var(--audit-accent)" : "var(--audit-fg-muted)",
                 }}
               >
                 {label}
@@ -683,22 +689,34 @@ function NocAuditLog() {
           {/* Tabela */}
           <div
             className="overflow-hidden rounded-sm border"
-            style={{ borderColor: "#1e293b" }}
+            style={{ borderColor: "var(--audit-border)" }}
           >
             {loading ? (
-              <div className="flex items-center gap-2 px-3 py-6 text-xs text-slate-400">
+              <div
+                className="flex items-center gap-2 px-3 py-6 text-xs"
+                style={{ color: "var(--audit-fg-muted)" }}
+              >
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 $ fetching workouts...
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 px-3 py-10 text-center text-xs text-slate-400">
-                <Radar className="h-8 w-8 animate-pulse" style={{ color: "var(--noc-online)" }} />
+              <div
+                className="flex flex-col items-center gap-2 px-3 py-10 text-center text-xs"
+                style={{ color: "var(--audit-fg-muted)" }}
+              >
+                <Radar className="h-8 w-8 animate-pulse" style={{ color: "var(--audit-accent)" }} />
                 <span>Aguardando telemetria de performance...</span>
               </div>
             ) : (
               <div className="max-h-[420px] overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-[#0b1220] text-[10px] uppercase tracking-widest text-slate-500">
+                  <thead
+                    className="sticky top-0 text-[10px] uppercase tracking-widest"
+                    style={{
+                      background: "var(--audit-surface)",
+                      color: "var(--audit-fg-subtle)",
+                    }}
+                  >
                     <tr>
                       <th className="px-3 py-2 text-left font-normal">Timestamp</th>
                       <th className="px-3 py-2 text-left font-normal">Evento</th>
@@ -711,22 +729,31 @@ function NocAuditLog() {
                       const tag = r.workout_type || r.category || "TREINO";
                       const dur = r.duration_minutes ?? 0;
                       return (
-                        <tr key={r.id} className="border-t" style={{ borderColor: "#1e293b" }}>
-                          <td className="px-3 py-2 text-slate-400">{fmtTs(r.created_at)}</td>
+                        <tr key={r.id} className="border-t" style={{ borderColor: "var(--audit-border)" }}>
+                          <td className="px-3 py-2" style={{ color: "var(--audit-fg-muted)" }}>
+                            {fmtTs(r.created_at)}
+                          </td>
                           <td className="px-3 py-2">
-                            <span className="text-slate-500">TREINO_DETECTADO</span>{" "}
-                            <span style={{ color: "var(--noc-online)" }}>· {tag.toUpperCase()}</span>
+                            <span style={{ color: "var(--audit-fg-subtle)" }}>TREINO_DETECTADO</span>{" "}
+                            <span style={{ color: "var(--audit-accent)" }}>· {tag.toUpperCase()}</span>
                           </td>
                           <td className="px-3 py-2">
                             <span
-                              className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] text-slate-300"
-                              style={{ borderColor: "#1e293b", background: "#0b1220" }}
+                              className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px]"
+                              style={{
+                                borderColor: "var(--audit-border)",
+                                background: "var(--audit-surface)",
+                                color: "var(--audit-fg)",
+                              }}
                             >
                               <Clock className="h-3 w-3" />
                               {dur > 0 ? `${dur} min` : "—"}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-right font-bold" style={{ color: "#10b981" }}>
+                          <td
+                            className="px-3 py-2 text-right font-bold"
+                            style={{ color: "var(--audit-accent)" }}
+                          >
                             +{r.xp_earned ?? 0} XP
                           </td>
                         </tr>
@@ -747,12 +774,17 @@ function KpiCard({ label, value, accent }: { label: string; value: string; accen
   return (
     <div
       className="rounded-sm border px-3 py-2"
-      style={{ borderColor: "#1e293b", background: "#0b1220" }}
+      style={{ borderColor: "var(--audit-border)", background: "var(--audit-surface)" }}
     >
-      <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
+      <div
+        className="text-[10px] uppercase tracking-widest"
+        style={{ color: "var(--audit-fg-subtle)" }}
+      >
+        {label}
+      </div>
       <div
         className="mt-0.5 text-lg font-bold tracking-wider"
-        style={{ color: accent ? "#10b981" : "#e2e8f0" }}
+        style={{ color: accent ? "var(--audit-accent)" : "var(--audit-fg)" }}
       >
         {value}
       </div>
