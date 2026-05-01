@@ -189,6 +189,266 @@ function useBahiaToday(): string {
   return today;
 }
 
+/* ============ NOC DASHBOARD v2.0 — Adaptive Command Center ============ */
+type SlaRow = {
+  user_id: string;
+  reference_date: string;
+  total_xp_day: number | null;
+  uptime_percentage: number | string | null;
+  system_status: string | null;
+};
+
+function SlaGauge({ value }: { value: number }) {
+  // Circular SVG progress (0–100). Stroke color depends on tier.
+  const clamped = Math.max(0, Math.min(100, value));
+  const radius = 80;
+  const stroke = 14;
+  const C = 2 * Math.PI * radius;
+  const offset = C - (clamped / 100) * C;
+
+  const tone =
+    clamped < 50
+      ? { stroke: "#ef4444", glow: "rgba(239,68,68,0.45)", label: "CRITICAL" }
+      : clamped < 90
+        ? { stroke: "#eab308", glow: "rgba(234,179,8,0.45)", label: "DEGRADED" }
+        : { stroke: "#10b981", glow: "rgba(16,185,129,0.45)", label: "OPERATIONAL" };
+
+  return (
+    <div className="relative flex h-[220px] w-[220px] items-center justify-center">
+      <svg width={220} height={220} className="-rotate-90">
+        <circle
+          cx={110}
+          cy={110}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          className="stroke-slate-200 dark:stroke-slate-800"
+        />
+        <circle
+          cx={110}
+          cy={110}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          stroke={tone.stroke}
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+          style={{
+            filter: `drop-shadow(0 0 10px ${tone.glow})`,
+            transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-mono text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          {clamped.toFixed(0)}
+          <span className="text-2xl text-slate-500 dark:text-slate-400">%</span>
+        </span>
+        <span
+          className="mt-1 font-mono text-[10px] uppercase tracking-[0.25em]"
+          style={{ color: tone.stroke }}
+        >
+          Uptime Humano
+        </span>
+        <span
+          className="mt-2 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest"
+          style={{ borderColor: tone.stroke, color: tone.stroke }}
+        >
+          {tone.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SystemTicker({ uptime }: { uptime: number }) {
+  const tier =
+    uptime < 50
+      ? {
+          label: "SYSTEM STATUS: CRITICAL",
+          bg: "bg-red-500/10 dark:bg-red-500/15",
+          border: "border-red-500/40",
+          dot: "bg-red-500",
+          text: "text-red-700 dark:text-red-400",
+          icon: <ShieldAlert className="h-4 w-4" />,
+          pulse: "animate-pulse",
+        }
+      : uptime < 90
+        ? {
+            label: "SYSTEM STATUS: DEGRADED",
+            bg: "bg-yellow-500/10 dark:bg-yellow-500/15",
+            border: "border-yellow-500/40",
+            dot: "bg-yellow-500",
+            text: "text-yellow-700 dark:text-yellow-400",
+            icon: <AlertCircle className="h-4 w-4" />,
+            pulse: "",
+          }
+        : {
+            label: "SYSTEM STATUS: OPERATIONAL",
+            bg: "bg-emerald-500/10 dark:bg-emerald-500/15",
+            border: "border-emerald-500/40",
+            dot: "bg-emerald-500",
+            text: "text-emerald-700 dark:text-emerald-400",
+            icon: <ShieldCheck className="h-4 w-4" />,
+            pulse: "",
+          };
+
+  const now = new Date().toLocaleTimeString("pt-BR", {
+    timeZone: "America/Bahia",
+    hour12: false,
+  });
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 rounded-md border ${tier.border} ${tier.bg} px-3 py-2 font-mono text-xs uppercase tracking-widest ${tier.text}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="flex items-center gap-2">
+        <span className={`inline-block h-2 w-2 rounded-full ${tier.dot} ${tier.pulse}`} />
+        {tier.icon}
+        <span className="font-bold">{tier.label}</span>
+      </span>
+      <span className="opacity-70">UPTIME {uptime.toFixed(1)}% · {now} BHA</span>
+    </div>
+  );
+}
+
+function NocStatCard({
+  label,
+  value,
+  hint,
+  icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="mt-2 font-mono text-2xl font-bold text-slate-900 dark:text-slate-100">
+        {value}
+      </div>
+      {hint && (
+        <div className="mt-1 font-mono text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-500">
+          {hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NocDashboardV2() {
+  const { user } = AuthCtx.useAuth();
+  const [row, setRow] = useState<SlaRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const today = useBahiaToday();
+
+  async function load() {
+    if (!user) {
+      setRow(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const { data } = await supabase
+      .from("daily_sla_monitor" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("reference_date", today)
+      .maybeSingle();
+    setRow((data as SlaRow | null) ?? null);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, today]);
+
+  // Realtime: any new workout / habit_log / todo refreshes the gauge.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`noc-v2-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "habit_logs", filter: `user_id=eq.${user.id}` },
+        load,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const uptime = Number(row?.uptime_percentage ?? 0) || 0;
+  const xpToday = Number(row?.total_xp_day ?? 0) || 0;
+  const status = row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
+
+  return (
+    <section
+      className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6"
+      aria-label="NOC Dashboard v2.0"
+    >
+      <SystemTicker uptime={uptime} />
+
+      <div className="mt-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-mono text-sm font-bold uppercase tracking-[0.25em] text-slate-700 dark:text-slate-300">
+            NOC // Command Center v2.0
+          </h2>
+          <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-500">
+            SLA gauge · {today} · TZ America/Bahia
+          </p>
+        </div>
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-center">
+        <div className="flex justify-center lg:justify-start">
+          <SlaGauge value={uptime} />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <NocStatCard
+            icon={<Activity className="h-3 w-3" />}
+            label="Status"
+            value={status}
+            hint="Tier do dia"
+          />
+          <NocStatCard
+            icon={<Zap className="h-3 w-3" />}
+            label="XP Hoje"
+            value={`+${xpToday}`}
+            hint="Recompensa acumulada"
+          />
+          <NocStatCard
+            icon={<Radar className="h-3 w-3" />}
+            label="Probe"
+            value={loading ? "..." : "60s"}
+            hint="Auto-refresh + realtime"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
