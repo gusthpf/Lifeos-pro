@@ -1151,6 +1151,7 @@ function LifeCoachApp() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
+        <NocDashboardV2 />
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
