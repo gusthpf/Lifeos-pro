@@ -631,16 +631,21 @@ function NocDashboardV2() {
   );
 }
 
-type AuditRow = { data_log: string; total_xp_dia: number | string | null; total_atividades: number | string | null };
+type DailyXpRow = {
+  data_log: string;
+  total_xp_dia: number | string | null;
+  total_atividades: number | string | null;
+};
 
-function AuditLogPanel() {
+function NocDailyXpAuditLog() {
   const { user } = AuthCtx.useAuth();
-  const [rows, setRows] = useState<AuditRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<DailyXpRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"7d" | "month" | "all">("7d");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !open) return;
     let active = true;
     (async () => {
       setLoading(true);
@@ -651,17 +656,17 @@ function AuditLogPanel() {
         .limit(365);
       if (!active) return;
       if (error) {
-        console.error("[AuditLog] fetch error", error);
+        console.error("[NocDailyXpAuditLog] fetch error", error);
         setRows([]);
       } else {
-        setRows((data ?? []) as unknown as AuditRow[]);
+        setRows((data ?? []) as unknown as DailyXpRow[]);
       }
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, open]);
 
   const filtered = useMemo(() => {
     if (filter === "7d") return rows.slice(0, 7);
@@ -681,97 +686,133 @@ function AuditLogPanel() {
 
   const fmtDate = (iso: string) => {
     const d = new Date(iso + "T00:00:00");
-    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const yy = d.getFullYear();
+    return `${dd}/${mo}/${yy}`;
   };
 
-  const filters: { id: typeof filter; label: string }[] = [
-    { id: "7d", label: "Últimos 7 Dias" },
+  const filters: { id: "7d" | "month" | "all"; label: string }[] = [
+    { id: "7d", label: "Últimos 7 dias" },
     { id: "month", label: "Este Mês" },
     { id: "all", label: "Log Completo" },
   ];
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            <History className="h-4 w-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              Audit Log · XP Diário
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Histórico verificável de pontos acumulados por dia
-            </p>
-          </div>
-        </div>
-        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
-          {filters.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                filter === f.id
-                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div
+      className="border-t font-mono text-sm"
+      style={{
+        borderColor: "var(--audit-border)",
+        background: "var(--audit-bg)",
+        color: "var(--audit-fg)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-2 text-left text-[11px] uppercase tracking-widest transition-colors"
+        style={{ color: "var(--audit-accent)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--audit-surface)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <span className="flex items-center gap-2">
+          <History className="h-3.5 w-3.5" />
+          NOC // DAILY XP AUDIT LOG
+        </span>
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-            <tr>
-              <th className="px-4 py-2.5 text-left font-medium">Data</th>
-              <th className="px-4 py-2.5 text-right font-medium">XP Acumulado</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {loading ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
-                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-8 text-center text-xs text-slate-500 dark:text-slate-400">
-                  Nenhum registro no período.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r) => (
-                <tr key={r.data_log} className="bg-white transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300">
-                    {fmtDate(r.data_log)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    +{Number(r.total_xp_dia) || 0} XP
-                  </td>
+      {open && (
+        <div className="space-y-3 px-4 pb-4 pt-2">
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-2">
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFilter(f.id)}
+                className="rounded border px-2.5 py-1 text-[11px] uppercase tracking-wider transition-colors"
+                style={{
+                  borderColor:
+                    filter === f.id ? "var(--audit-accent)" : "var(--audit-border)",
+                  background:
+                    filter === f.id ? "var(--audit-accent)" : "transparent",
+                  color: filter === f.id ? "var(--audit-bg)" : "var(--audit-fg)",
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tabela */}
+          <div
+            className="overflow-hidden rounded border"
+            style={{ borderColor: "var(--audit-border)" }}
+          >
+            <table className="w-full text-xs">
+              <thead
+                className="text-[10px] uppercase tracking-widest"
+                style={{ background: "var(--audit-surface)", color: "var(--audit-accent)" }}
+              >
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Data</th>
+                  <th className="px-3 py-2 text-right font-medium">Total XP</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-          {filtered.length > 0 && (
-            <tfoot className="bg-slate-50 dark:bg-slate-950">
-              <tr>
-                <td className="px-4 py-2.5 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Total ({filtered.length} {filtered.length === 1 ? "dia" : "dias"})
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-sm font-bold text-slate-900 dark:text-slate-100">
-                  {totalXp} XP
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    </section>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={2} className="px-3 py-6 text-center">
+                      <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin" />
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="px-3 py-6 text-center opacity-60"
+                      style={{ color: "var(--audit-fg)" }}
+                    >
+                      Nenhum registro no período.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((r, i) => (
+                    <tr
+                      key={r.data_log}
+                      style={{
+                        borderTop: i === 0 ? "none" : "1px solid var(--audit-border)",
+                      }}
+                    >
+                      <td className="px-3 py-2">{fmtDate(r.data_log)}</td>
+                      <td
+                        className="px-3 py-2 text-right font-semibold"
+                        style={{ color: "var(--audit-accent)" }}
+                      >
+                        +{Number(r.total_xp_dia) || 0}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {filtered.length > 0 && (
+                <tfoot
+                  style={{ background: "var(--audit-surface)", color: "var(--audit-accent)" }}
+                >
+                  <tr>
+                    <td className="px-3 py-2 text-[10px] uppercase tracking-widest">
+                      Total ({filtered.length} {filtered.length === 1 ? "dia" : "dias"})
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold">+{totalXp}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1117,6 +1158,7 @@ function NocPanel() {
       </Dialog>
 
       <NocAuditLog />
+      <NocDailyXpAuditLog />
     </div>
   );
 }
@@ -1480,7 +1522,6 @@ function LifeCoachApp() {
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <NocDashboardV2 />
         <NocPanel />
-        <AuditLogPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
