@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_activities: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string
+          id: string
+          user_id: string | null
+          xp_reward: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          user_id?: string | null
+          xp_reward: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          user_id?: string | null
+          xp_reward?: number
+        }
+        Relationships: []
+      }
       habit_logs: {
         Row: {
           completed_at: string | null
@@ -393,6 +420,14 @@ export type Database = {
           uptime_percentage: number | null
           user_id: string | null
           waived_xp: number | null
+        }
+        Relationships: []
+      }
+      daily_xp_summary: {
+        Row: {
+          data_log: string | null
+          total_atividades: number | null
+          total_xp_dia: number | null
         }
         Relationships: []
       }
