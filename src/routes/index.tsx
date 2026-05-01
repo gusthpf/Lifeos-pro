@@ -344,6 +344,157 @@ function NocStatCard({
   );
 }
 
+type IncidentCategory = {
+  id: string;
+  display_name: string;
+  default_xp_waive: number | null;
+};
+
+function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
+  const { user } = AuthCtx.useAuth();
+  const [open, setOpen] = useState(false);
+  const [categories, setCategories] = useState<IncidentCategory[]>([]);
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingCats, setLoadingCats] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    (async () => {
+      setLoadingCats(true);
+      const { data, error } = await supabase
+        .from("incident_categories" as any)
+        .select("id, display_name, default_xp_waive")
+        .order("display_name", { ascending: true });
+      if (!active) return;
+      if (error) {
+        toast.error("Falha ao carregar categorias");
+      } else {
+        setCategories((data as IncidentCategory[] | null) ?? []);
+      }
+      setLoadingCats(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  const selected = categories.find((c) => c.id === categoryId);
+  const xpWaived = selected?.default_xp_waive ?? 50;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Sessão expirada");
+      return;
+    }
+    if (!categoryId) {
+      toast.error("Selecione uma categoria");
+      return;
+    }
+    if (description.trim().length < 5) {
+      toast.error("Descreva a justificativa técnica");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from("incident_logs" as any).insert({
+      user_id: user.id,
+      category_id: categoryId,
+      description: description.trim(),
+      xp_waived: xpWaived,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Falha ao registrar ticket", { description: error.message });
+      return;
+    }
+    toast.success("Ticket registrado. SLA recalculado com sucesso.");
+    setDescription("");
+    setCategoryId("");
+    setOpen(false);
+    onSubmitted();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="gap-2 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/40"
+      >
+        <ShieldAlert className="h-4 w-4" />
+        Abrir Ticket de Downtime
+      </Button>
+      <DialogContent className="border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-amber-500" />
+            Ticket de Downtime
+          </DialogTitle>
+          <DialogDescription className="text-slate-600 dark:text-slate-400">
+            Registre uma justificativa técnica. O SLA do dia será recalculado:
+            <span className="font-mono"> Meta = 200 − XP justificado</span>.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="incident-category">Categoria</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger
+                id="incident-category"
+                className="border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <SelectValue
+                  placeholder={loadingCats ? "Carregando..." : "Selecione a categoria"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="incident-desc">Justificativa Técnica</Label>
+            <Textarea
+              id="incident-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descreva o motivo do downtime e contexto operacional..."
+              rows={4}
+              className="resize-none border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+            />
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            XP a justificar: <span className="font-bold">{xpWaived}</span>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Registrar ticket
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
