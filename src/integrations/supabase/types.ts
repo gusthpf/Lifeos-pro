@@ -332,7 +332,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      daily_sla_monitor: {
+        Row: {
+          reference_date: string | null
+          system_status: string | null
+          total_xp_day: number | null
+          uptime_percentage: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adicionar_xp: { Args: { xp_ganho: number }; Returns: undefined }
