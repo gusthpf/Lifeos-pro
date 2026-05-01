@@ -193,7 +193,8 @@ function useBahiaToday(): string {
 type SlaRow = {
   user_id: string;
   reference_date: string;
-  total_xp_day: number | null;
+  realized_xp: number | string | null;
+  waived_xp: number | string | null;
   uptime_percentage: number | string | null;
   system_status: string | null;
 };
@@ -548,7 +549,7 @@ function NocDashboardV2() {
   }, [user?.id]);
 
   const uptime = Number(row?.uptime_percentage ?? 0) || 0;
-  const xpToday = Number(row?.total_xp_day ?? 0) || 0;
+  const xpToday = Number(row?.realized_xp ?? 0) || 0;
   const status = row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
   return (
