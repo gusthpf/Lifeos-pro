@@ -152,6 +152,12 @@ function getBahiaDateISO(): string {
   return fmt.format(new Date());
 }
 
+function getNextDateISO(dateISO: string): string {
+  const [year, month, day] = dateISO.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return next.toISOString().slice(0, 10);
+}
+
 // Returns ms until next 00:00 in America/Bahia.
 function msUntilNextBahiaMidnight(): number {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -499,23 +505,35 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
+  const [workoutsXpToday, setWorkoutsXpToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const today = useBahiaToday();
 
   async function load() {
     if (!user) {
       setRow(null);
+      setWorkoutsXpToday(0);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const { data } = await supabase
+    const nextDay = getNextDateISO(today);
+    const [{ data }, { data: workouts }] = await Promise.all([
+      supabase
       .from("daily_sla_monitor" as any)
       .select("*")
       .eq("user_id", user.id)
       .eq("reference_date", today)
-      .maybeSingle();
+      .maybeSingle(),
+      supabase
+        .from("workouts")
+        .select("xp_earned")
+        .eq("user_id", user.id)
+        .gte("created_at", `${today}T00:00:00-03:00`)
+        .lt("created_at", `${nextDay}T00:00:00-03:00`),
+    ]);
     setRow((data as SlaRow | null) ?? null);
+    setWorkoutsXpToday((workouts ?? []).reduce((sum, workout) => sum + Number(workout.xp_earned ?? 0), 0));
     setLoading(false);
   }
 
@@ -549,7 +567,7 @@ function NocDashboardV2() {
   }, [user?.id]);
 
   const uptime = Number(row?.uptime_percentage ?? 0) || 0;
-  const xpToday = Number(row?.realized_xp ?? 0) || 0;
+  const xpToday = workoutsXpToday;
   const status = row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
   return (
