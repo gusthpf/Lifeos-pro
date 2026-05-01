@@ -372,7 +372,7 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
       if (error) {
         toast.error("Falha ao carregar categorias");
       } else {
-        setCategories((data as IncidentCategory[] | null) ?? []);
+        setCategories(((data as unknown) as IncidentCategory[] | null) ?? []);
       }
       setLoadingCats(false);
     })();
