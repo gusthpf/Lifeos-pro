@@ -1522,7 +1522,7 @@ function LifeCoachApp() {
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <NocDashboardV2 />
         <NocPanel />
-        <AuditLogPanel />
+        <ManagementBar />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
