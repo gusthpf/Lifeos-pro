@@ -631,6 +631,150 @@ function NocDashboardV2() {
   );
 }
 
+type AuditRow = { data_log: string; total_xp_dia: number | string | null; total_atividades: number | string | null };
+
+function AuditLogPanel() {
+  const { user } = AuthCtx.useAuth();
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"7d" | "month" | "all">("7d");
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("daily_xp_summary" as any)
+        .select("data_log, total_xp_dia, total_atividades")
+        .order("data_log", { ascending: false })
+        .limit(365);
+      if (!active) return;
+      if (error) {
+        console.error("[AuditLog] fetch error", error);
+        setRows([]);
+      } else {
+        setRows((data ?? []) as AuditRow[]);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const filtered = useMemo(() => {
+    if (filter === "7d") return rows.slice(0, 7);
+    if (filter === "month") {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      return rows.filter((r) => {
+        const d = new Date(r.data_log + "T00:00:00");
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+    }
+    return rows;
+  }, [rows, filter]);
+
+  const totalXp = filtered.reduce((acc, r) => acc + (Number(r.total_xp_dia) || 0), 0);
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const filters: { id: typeof filter; label: string }[] = [
+    { id: "7d", label: "Últimos 7 Dias" },
+    { id: "month", label: "Este Mês" },
+    { id: "all", label: "Log Completo" },
+  ];
+
+  return (
+    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <History className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              Audit Log · XP Diário
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Histórico verificável de pontos acumulados por dia
+            </p>
+          </div>
+        </div>
+        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                filter === f.id
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium">Data</th>
+              <th className="px-4 py-2.5 text-right font-medium">XP Acumulado</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {loading ? (
+              <tr>
+                <td colSpan={2} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-4 py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Nenhum registro no período.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((r) => (
+                <tr key={r.data_log} className="bg-white transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50">
+                  <td className="px-4 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300">
+                    {fmtDate(r.data_log)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    +{Number(r.total_xp_dia) || 0} XP
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {filtered.length > 0 && (
+            <tfoot className="bg-slate-50 dark:bg-slate-950">
+              <tr>
+                <td className="px-4 py-2.5 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Total ({filtered.length} {filtered.length === 1 ? "dia" : "dias"})
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {totalXp} XP
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
@@ -1336,6 +1480,7 @@ function LifeCoachApp() {
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <NocDashboardV2 />
         <NocPanel />
+        <AuditLogPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
