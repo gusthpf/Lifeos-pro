@@ -1523,7 +1523,6 @@ function LifeCoachApp() {
         <NocDashboardV2 />
         <NocPanel />
         <ManagementBar />
-        <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
