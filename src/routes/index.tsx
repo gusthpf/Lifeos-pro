@@ -317,7 +317,9 @@ function SystemTicker({ uptime }: { uptime: number }) {
         {tier.icon}
         <span className="font-bold">{tier.label}</span>
       </span>
-      <span className="opacity-70">UPTIME {uptime.toFixed(1)}% · {now} BHA</span>
+      <span className="opacity-70">
+        UPTIME {uptime.toFixed(1)}% · {now} BHA
+      </span>
     </div>
   );
 }
@@ -379,7 +381,7 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
       if (error) {
         toast.error("Falha ao carregar categorias");
       } else {
-        setCategories(((data as unknown) as IncidentCategory[] | null) ?? []);
+        setCategories((data as unknown as IncidentCategory[] | null) ?? []);
       }
       setLoadingCats(false);
     })();
@@ -492,7 +494,11 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
               Cancelar
             </Button>
             <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4" />
+              )}
               Registrar ticket
             </Button>
           </DialogFooter>
@@ -520,11 +526,11 @@ function NocDashboardV2() {
     const nextDay = getNextDateISO(today);
     const [{ data }, { data: workouts }] = await Promise.all([
       supabase
-      .from("daily_sla_monitor" as any)
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("reference_date", today)
-      .maybeSingle(),
+        .from("daily_sla_monitor" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("reference_date", today)
+        .maybeSingle(),
       supabase
         .from("workouts")
         .select("xp_earned")
@@ -533,7 +539,9 @@ function NocDashboardV2() {
         .lt("created_at", `${nextDay}T00:00:00-03:00`),
     ]);
     setRow((data as SlaRow | null) ?? null);
-    setWorkoutsXpToday((workouts ?? []).reduce((sum, workout) => sum + Number(workout.xp_earned ?? 0), 0));
+    setWorkoutsXpToday(
+      (workouts ?? []).reduce((sum, workout) => sum + Number(workout.xp_earned ?? 0), 0),
+    );
     setLoading(false);
   }
 
@@ -568,7 +576,8 @@ function NocDashboardV2() {
 
   const uptime = Number(row?.uptime_percentage ?? 0) || 0;
   const xpToday = workoutsXpToday;
-  const status = row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
+  const status =
+    row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
   return (
     <section
@@ -651,7 +660,10 @@ function NocPanel() {
         .filter((h: any) => trainingTitle.test(h.title ?? ""))
         .map((h: any) => h.id as string),
     );
-    const now = new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour12: false });
+    const now = new Date().toLocaleTimeString("pt-BR", {
+      timeZone: "America/Bahia",
+      hour12: false,
+    });
     setLastCheck(now);
     if (error) {
       setStatus("offline");
@@ -698,14 +710,12 @@ function NocPanel() {
     const { data: habits } = await supabase.from("habits").select("id,title");
     const match = (habits ?? []).find((h: any) => trainingTitle.test(h.title ?? ""));
 
-    const { error } = await supabase
-      .from("habit_logs")
-      .insert({
-        user_id: user.id,
-        completed_at: today,
-        habit_id: match?.id ?? null,
-        notes,
-      });
+    const { error } = await supabase.from("habit_logs").insert({
+      user_id: user.id,
+      completed_at: today,
+      habit_id: match?.id ?? null,
+      notes,
+    });
     if (error) {
       setRegistering(false);
       toast.error("Falha ao registrar treino", { description: error.message });
@@ -715,17 +725,15 @@ function NocPanel() {
     // Also persist to workouts table → triggers +50 XP automatically on the backend
     const workoutType = customType || category || "Treino";
     const durationMin = parseInt(duration, 10);
-    const { error: wErr } = await supabase
-      .from("workouts")
-      .insert({
-        user_id: user.id,
-        workout_type: workoutType,
-        category: "Treino",
-        duration_minutes: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : 0,
-        xp_earned: 50,
-        intensity_level: intensity || null,
-        exercise_name: focus || null,
-      });
+    const { error: wErr } = await supabase.from("workouts").insert({
+      user_id: user.id,
+      workout_type: workoutType,
+      category: "Treino",
+      duration_minutes: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : 0,
+      xp_earned: 50,
+      intensity_level: intensity || null,
+      exercise_name: focus || null,
+    });
     setRegistering(false);
     if (wErr) {
       toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
@@ -762,7 +770,11 @@ function NocPanel() {
         isOffline ? "noc-blink" : ""
       }`}
       style={{
-        borderColor: isOnline ? "var(--noc-online)" : isOffline ? "var(--noc-offline)" : "var(--border)",
+        borderColor: isOnline
+          ? "var(--noc-online)"
+          : isOffline
+            ? "var(--noc-offline)"
+            : "var(--border)",
         background: isOnline
           ? "var(--noc-online-bg)"
           : isOffline
@@ -810,7 +822,8 @@ function NocPanel() {
               ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
             </div>
             <div className="text-xs opacity-80">
-              {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje · last_probe={lastCheck}
+              {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje ·
+              last_probe={lastCheck}
             </div>
           </div>
         ) : (
@@ -860,10 +873,7 @@ function NocPanel() {
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="training-category">Categoria</Label>
-                <Select
-                  value={trainingCategory}
-                  onValueChange={setTrainingCategory}
-                >
+                <Select value={trainingCategory} onValueChange={setTrainingCategory}>
                   <SelectTrigger id="training-category">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
@@ -883,10 +893,7 @@ function NocPanel() {
 
               <div className="space-y-2">
                 <Label htmlFor="training-intensity">Intensidade</Label>
-                <Select
-                  value={trainingIntensity}
-                  onValueChange={setTrainingIntensity}
-                >
+                <Select value={trainingIntensity} onValueChange={setTrainingIntensity}>
                   <SelectTrigger id="training-intensity">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
@@ -946,11 +953,7 @@ function NocPanel() {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setModalOpen(false)}
-              disabled={registering}
-            >
+            <Button variant="outline" onClick={() => setModalOpen(false)} disabled={registering}>
               Cancelar
             </Button>
             <Button
@@ -1003,7 +1006,9 @@ function NocAuditLog() {
       setLoading(true);
       const { data, error } = await supabase
         .from("workouts")
-        .select("id,user_id,workout_type,category,exercise_name,intensity_level,duration_minutes,xp_earned,created_at")
+        .select(
+          "id,user_id,workout_type,category,exercise_name,intensity_level,duration_minutes,xp_earned,created_at",
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (active) {
@@ -1102,11 +1107,13 @@ function NocAuditLog() {
 
           {/* Filtros */}
           <div className="flex flex-wrap gap-2">
-            {([
-              ["7d", "Últimos 7 dias"],
-              ["month", "Este Mês"],
-              ["all", "Log Completo"],
-            ] as const).map(([k, label]) => (
+            {(
+              [
+                ["7d", "Últimos 7 dias"],
+                ["month", "Este Mês"],
+                ["all", "Log Completo"],
+              ] as const
+            ).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -1133,8 +1140,7 @@ function NocAuditLog() {
                 className="flex items-center gap-2 px-3 py-6 text-xs"
                 style={{ color: "var(--audit-fg-muted)" }}
               >
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                $ fetching workouts...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />$ fetching workouts...
               </div>
             ) : filtered.length === 0 ? (
               <div
@@ -1166,13 +1172,21 @@ function NocAuditLog() {
                       const tag = r.workout_type || r.category || "TREINO";
                       const dur = r.duration_minutes ?? 0;
                       return (
-                        <tr key={r.id} className="border-t" style={{ borderColor: "var(--audit-border)" }}>
+                        <tr
+                          key={r.id}
+                          className="border-t"
+                          style={{ borderColor: "var(--audit-border)" }}
+                        >
                           <td className="px-3 py-2" style={{ color: "var(--audit-fg-muted)" }}>
                             {fmtTs(r.created_at)}
                           </td>
                           <td className="px-3 py-2">
-                            <span style={{ color: "var(--audit-fg-subtle)" }}>TREINO_DETECTADO</span>{" "}
-                            <span style={{ color: "var(--audit-accent)" }}>· {tag.toUpperCase()}</span>
+                            <span style={{ color: "var(--audit-fg-subtle)" }}>
+                              TREINO_DETECTADO
+                            </span>{" "}
+                            <span style={{ color: "var(--audit-accent)" }}>
+                              · {tag.toUpperCase()}
+                            </span>
                           </td>
                           <td className="px-3 py-2">
                             <span
@@ -1276,9 +1290,7 @@ function LifeCoachApp() {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">AI Life Coach</h1>
-              <p className="text-sm text-muted-foreground">
-                Treine. Planeje. Reflita. Evolua.
-              </p>
+              <p className="text-sm text-muted-foreground">Treine. Planeje. Reflita. Evolua.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1309,9 +1321,7 @@ function LifeCoachApp() {
           aria-live="polite"
         >
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              Sessão
-            </p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Sessão</p>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
               {greeting}
               {loading && (
@@ -1381,7 +1391,6 @@ function LifeCoachApp() {
   );
 }
 
-
 /* ============ DOJO ============ */
 function DojoTab() {
   const { user } = AuthCtx.useAuth();
@@ -1395,7 +1404,10 @@ function DojoTab() {
 
   const reload = async () => {
     const [{ data: h }, { data: logs }] = await Promise.all([
-      supabase.from("habits").select("id,title,category,xp_reward,frequency_type,duration,target_per_period").order("created_at", { ascending: false }),
+      supabase
+        .from("habits")
+        .select("id,title,category,xp_reward,frequency_type,duration,target_per_period")
+        .order("created_at", { ascending: false }),
       supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
     ]);
     setHabits((h ?? []) as Habit[]);
@@ -1547,7 +1559,10 @@ function DojoTab() {
                     className="flex-1"
                     style={
                       done
-                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)" }
+                        ? {
+                            background: "var(--gradient-primary)",
+                            color: "var(--primary-foreground)",
+                          }
                         : undefined
                     }
                   >
@@ -1722,7 +1737,9 @@ function StrategyTab() {
             >
               <div
                 className="absolute inset-x-0 top-0 h-1"
-                style={{ background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso }}
+                style={{
+                  background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso,
+                }}
               />
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
@@ -1741,7 +1758,9 @@ function StrategyTab() {
                       {g.horizon}
                     </Badge>
                   )}
-                  <Badge variant="secondary">{(g.status ?? "em_progresso").replace("_", " ")}</Badge>
+                  <Badge variant="secondary">
+                    {(g.status ?? "em_progresso").replace("_", " ")}
+                  </Badge>
                 </div>
                 <div className="flex gap-2 pt-1">
                   <Button
@@ -1811,7 +1830,10 @@ type TodoItem = {
   completed_at: string | null;
 };
 
-const PRIORITY_META: Record<Priority, { emoji: string; label: string; color: string; bg: string; ring: string }> = {
+const PRIORITY_META: Record<
+  Priority,
+  { emoji: string; label: string; color: string; bg: string; ring: string }
+> = {
   Alta: {
     emoji: "🔥",
     label: "Alta",
@@ -1970,7 +1992,11 @@ function TodoTab() {
               </SelectContent>
             </Select>
             <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {creating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               Adicionar
             </Button>
           </form>
@@ -1993,7 +2019,11 @@ function TodoTab() {
                 <div className="flex items-center gap-2">
                   <span
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.ring}` }}
+                    style={{
+                      background: meta.bg,
+                      color: meta.color,
+                      border: `1px solid ${meta.ring}`,
+                    }}
                   >
                     <span aria-hidden>{meta.emoji}</span> Prioridade {meta.label}
                   </span>
@@ -2057,9 +2087,7 @@ function TodoTab() {
             <DialogTitle className="flex items-center gap-2">
               <Archive className="h-5 w-5" /> Arquivo de tarefas
             </DialogTitle>
-            <DialogDescription>
-              Tarefas concluídas há mais de 24 horas.
-            </DialogDescription>
+            <DialogDescription>Tarefas concluídas há mais de 24 horas.</DialogDescription>
           </DialogHeader>
           {archived.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma tarefa arquivada ainda.</p>
@@ -2075,8 +2103,12 @@ function TodoTab() {
                       className="flex items-center justify-between gap-3 rounded-md border border-border bg-card/60 p-2.5 text-sm"
                     >
                       <div className="flex min-w-0 items-center gap-2">
-                        <span aria-hidden style={{ color: meta.color }}>{meta.emoji}</span>
-                        <span className="truncate line-through text-muted-foreground">{item.title}</span>
+                        <span aria-hidden style={{ color: meta.color }}>
+                          {meta.emoji}
+                        </span>
+                        <span className="truncate line-through text-muted-foreground">
+                          {item.title}
+                        </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="text-xs text-muted-foreground">
@@ -2264,7 +2296,10 @@ function ReflectionTab() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpenText className="h-5 w-5 text-primary" />
@@ -2591,7 +2626,10 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Flame className="h-4 w-4 text-primary" />
@@ -2623,7 +2661,10 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Dumbbell className="h-4 w-4 text-primary" />
@@ -2658,7 +2699,10 @@ function MetricsTab() {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Target className="h-4 w-4 text-accent" />
@@ -2707,17 +2751,12 @@ function MetricsTab() {
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <Card className="border-border bg-card/70 backdrop-blur" style={{ boxShadow: "var(--shadow-card)" }}>
+    <Card
+      className="border-border bg-card/70 backdrop-blur"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
       <CardContent className="flex items-center gap-4 p-6">
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
           {icon}
@@ -2777,11 +2816,7 @@ function NexusTab() {
 
     // Tags = linguagens dos blocos ```lang
     const tags = Array.from(
-      new Set(
-        Array.from(content.matchAll(/```([a-zA-Z0-9_+-]+)/g)).map((m) =>
-          m[1].toLowerCase(),
-        ),
-      ),
+      new Set(Array.from(content.matchAll(/```([a-zA-Z0-9_+-]+)/g)).map((m) => m[1].toLowerCase())),
     );
 
     const { data: userRes } = await supabase.auth.getUser();
@@ -2830,9 +2865,7 @@ function NexusTab() {
           className="my-2 overflow-x-auto rounded-md border border-primary/30 p-3 text-xs leading-relaxed"
           style={{ background: "var(--nexus-code-bg)" }}
         >
-          <div className="mb-1 text-[10px] uppercase tracking-widest text-primary/70">
-            {p.lang}
-          </div>
+          <div className="mb-1 text-[10px] uppercase tracking-widest text-primary/70">{p.lang}</div>
           <code style={{ color: "var(--nexus-code-fg)" }}>{p.content}</code>
         </pre>
       ) : (
@@ -2930,12 +2963,7 @@ function NexusTab() {
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
             disabled={sending}
           />
-          <Button
-            size="sm"
-            onClick={send}
-            disabled={sending || !input.trim()}
-            className="gap-1"
-          >
+          <Button size="sm" onClick={send} disabled={sending || !input.trim()} className="gap-1">
             <Send className="h-3 w-3" /> Enviar
           </Button>
         </div>
@@ -3000,14 +3028,26 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     toast.success("Hábito criado");
-    setTitle(""); setCategory(""); setFrequency("diario"); setDuration("4"); setTarget("1");
+    setTitle("");
+    setCategory("");
+    setFrequency("diario");
+    setDuration("4");
+    setTarget("1");
     onClose();
   }
 
   const durationLabel =
-    frequency === "diario" ? "Duração (dias)" : frequency === "semanal" ? "Duração (semanas)" : "Duração (meses)";
+    frequency === "diario"
+      ? "Duração (dias)"
+      : frequency === "semanal"
+        ? "Duração (semanas)"
+        : "Duração (meses)";
   const targetLabel =
-    frequency === "diario" ? "Check-ins / dia" : frequency === "semanal" ? "Dias / semana" : "Dias / mês";
+    frequency === "diario"
+      ? "Check-ins / dia"
+      : frequency === "semanal"
+        ? "Dias / semana"
+        : "Dias / mês";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -3019,11 +3059,22 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="h-title">Título</Label>
-            <Input id="h-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+            <Input
+              id="h-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={100}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="h-cat">Categoria</Label>
-            <Input id="h-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="treino, mental, estudo..." maxLength={50} />
+            <Input
+              id="h-cat"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="treino, mental, estudo..."
+              maxLength={50}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="h-freq">Tipo</Label>
@@ -3039,21 +3090,36 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             </select>
           </div>
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span> (gerenciado pelo sistema)
+            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span>{" "}
+            (gerenciado pelo sistema)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="h-dur">{durationLabel}</Label>
-              <Input id="h-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+              <Input
+                id="h-dur"
+                type="number"
+                min={0}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="h-target">{targetLabel}</Label>
-              <Input id="h-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+              <Input
+                id="h-target"
+                type="number"
+                min={1}
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              />
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
           <Button onClick={submit} disabled={saving || !title.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
           </Button>
@@ -3122,11 +3188,21 @@ function EditHabitModal({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="eh-title">Título</Label>
-            <Input id="eh-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+            <Input
+              id="eh-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={100}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="eh-cat">Categoria</Label>
-            <Input id="eh-cat" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={50} />
+            <Input
+              id="eh-cat"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              maxLength={50}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="eh-freq">Tipo</Label>
@@ -3142,21 +3218,36 @@ function EditHabitModal({
             </select>
           </div>
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span> (gerenciado pelo sistema)
+            XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span>{" "}
+            (gerenciado pelo sistema)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="eh-dur">Duração</Label>
-              <Input id="eh-dur" type="number" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+              <Input
+                id="eh-dur"
+                type="number"
+                min={0}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eh-target">Meta por período</Label>
-              <Input id="eh-target" type="number" min={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+              <Input
+                id="eh-target"
+                type="number"
+                min={1}
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              />
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
           <Button onClick={submit} disabled={saving || !title.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
           </Button>
@@ -3188,7 +3279,9 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
       return;
     }
     toast.success("Estratégia criada");
-    setObjective(""); setHorizon("medio"); setStatus("em_progresso");
+    setObjective("");
+    setHorizon("medio");
+    setStatus("em_progresso");
     onClose();
   }
 
@@ -3202,7 +3295,12 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="g-obj">Objetivo</Label>
-            <Textarea id="g-obj" value={objective} onChange={(e) => setObjective(e.target.value)} maxLength={500} />
+            <Textarea
+              id="g-obj"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              maxLength={500}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="g-hor">Horizonte</Label>
@@ -3232,7 +3330,9 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
           <Button onClick={submit} disabled={saving || !objective.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
           </Button>
@@ -3246,10 +3346,7 @@ function SkeletonGrid({ rows = 6 }: { rows?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: rows }).map((_, i) => (
-        <div
-          key={i}
-          className="h-32 animate-pulse rounded-xl border border-border bg-card/40"
-        />
+        <div key={i} className="h-32 animate-pulse rounded-xl border border-border bg-card/40" />
       ))}
     </div>
   );
@@ -3330,7 +3427,12 @@ function EditGoalModal({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="eg-obj">Objetivo</Label>
-            <Textarea id="eg-obj" value={objective} onChange={(e) => setObjective(e.target.value)} maxLength={500} />
+            <Textarea
+              id="eg-obj"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              maxLength={500}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="eg-hor">Horizonte</Label>
@@ -3360,7 +3462,9 @@ function EditGoalModal({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
           <Button onClick={submit} disabled={saving || !objective.trim()}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
           </Button>
