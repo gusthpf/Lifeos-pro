@@ -118,6 +118,59 @@ export type Database = {
         }
         Relationships: []
       }
+      incident_categories: {
+        Row: {
+          default_xp_waive: number | null
+          display_name: string
+          id: string
+        }
+        Insert: {
+          default_xp_waive?: number | null
+          display_name: string
+          id: string
+        }
+        Update: {
+          default_xp_waive?: number | null
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      incident_logs: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          user_id: string
+          xp_waived: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          user_id: string
+          xp_waived?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          user_id?: string
+          xp_waived?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_logs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "incident_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal: {
         Row: {
           content: string
@@ -334,21 +387,14 @@ export type Database = {
     Views: {
       daily_sla_monitor: {
         Row: {
+          realized_xp: number | null
           reference_date: string | null
           system_status: string | null
-          total_xp_day: number | null
           uptime_percentage: number | null
           user_id: string | null
+          waived_xp: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "workouts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
