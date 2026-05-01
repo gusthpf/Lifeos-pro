@@ -654,7 +654,7 @@ function AuditLogPanel() {
         console.error("[AuditLog] fetch error", error);
         setRows([]);
       } else {
-        setRows((data ?? []) as AuditRow[]);
+        setRows((data ?? []) as unknown as AuditRow[]);
       }
       setLoading(false);
     })();
