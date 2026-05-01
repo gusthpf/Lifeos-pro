@@ -567,7 +567,10 @@ function NocDashboardV2() {
             SLA gauge · {today} · TZ America/Bahia
           </p>
         </div>
-        {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+        <div className="flex items-center gap-3">
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+          <IncidentTicketDialog onSubmitted={load} />
+        </div>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-center">
