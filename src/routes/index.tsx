@@ -54,6 +54,10 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Activity,
+  ShieldAlert,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SystemStatus } from "@/components/SystemStatus";
