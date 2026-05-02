@@ -1180,7 +1180,6 @@ function NocPanel() {
       </Dialog>
 
       <NocAuditLog />
-      <NocDailyXpAuditLog />
     </div>
   );
 }
