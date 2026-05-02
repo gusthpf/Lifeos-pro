@@ -14,7 +14,7 @@ import { toast, Toaster } from "sonner";
 export const Route = createFileRoute("/wiki")({
   head: () => ({
     meta: [
-      { title: "Wiki Técnica — AI Life Coach" },
+      { title: "LifeOS - Pro Manager" },
       {
         name: "description",
         content:
