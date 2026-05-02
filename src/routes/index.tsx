@@ -82,7 +82,7 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI Life Coach — Dojo, Estratégia, Reflexão" },
+      { title: "LifeOS - Pro Manager" },
       {
         name: "description",
         content:
@@ -1975,14 +1975,20 @@ function StrategyTab() {
                     variant={done ? "secondary" : "default"}
                     onClick={() => completeGoal(g)}
                     disabled={done || isCompleting}
-                    className="flex-1 gap-2"
+                    className={
+                      done
+                        ? "flex-1 gap-2 rounded-lg border-0 bg-gradient-to-r from-[#73C5EA] to-[#88CED6] text-white hover:opacity-95 disabled:opacity-100 dark:from-[#065f46] dark:to-[#0d9488] dark:text-black"
+                        : "flex-1 gap-2"
+                    }
                   >
                     {isCompleting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : done ? (
+                      <Check className="h-4 w-4" />
                     ) : (
                       <CheckCircle2 className="h-4 w-4" />
                     )}
-                    {done ? "Concluída" : "Concluir"}
+                    {done ? "Concluído hoje" : "Concluir"}
                   </Button>
                   <Button
                     size="sm"

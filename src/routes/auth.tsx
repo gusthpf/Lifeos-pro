@@ -12,7 +12,7 @@ import { Loader2, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — AI Life Coach" },
+      { title: "LifeOS - Pro Manager" },
       { name: "description", content: "Entre ou crie sua conta no AI Life Coach." },
     ],
   }),
