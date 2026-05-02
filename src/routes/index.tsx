@@ -513,6 +513,7 @@ function NocDashboardV2() {
   const [row, setRow] = useState<SlaRow | null>(null);
   const [workoutsXpToday, setWorkoutsXpToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(true);
   const today = useBahiaToday();
 
   async function load() {
