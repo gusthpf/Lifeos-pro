@@ -82,7 +82,7 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI Life Coach — Dojo, Estratégia, Reflexão" },
+      { title: "LifeOS - Pro Manager" },
       {
         name: "description",
         content:
