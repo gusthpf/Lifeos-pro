@@ -588,46 +588,67 @@ function NocDashboardV2() {
       <SystemTicker uptime={uptime} />
 
       <div className="mt-4 flex items-center justify-between">
-        <div>
-          <h2 className="font-mono text-sm font-bold uppercase tracking-[0.25em] text-slate-700 dark:text-slate-300">
-            NOC // Command Center v2.0
-          </h2>
-          <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-500">
-            SLA gauge · {today} · TZ America/Bahia
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex flex-1 items-center gap-3 text-left"
+          aria-expanded={expanded}
+          aria-controls="noc-command-center-body"
+        >
+          <div className="flex-1">
+            <h2 className="font-mono text-sm font-bold uppercase tracking-[0.25em] text-slate-700 dark:text-slate-300">
+              NOC // Command Center v2.0
+            </h2>
+            <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-500">
+              SLA gauge · {today} · TZ America/Bahia
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-slate-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-500" />
+          )}
+        </button>
+        <div className="ml-3 flex items-center gap-3">
           {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
           <IncidentTicketDialog onSubmitted={load} />
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-center">
-        <div className="flex justify-center lg:justify-start">
-          <SlaGauge value={uptime} />
-        </div>
+      {expanded && (
+        <div id="noc-command-center-body">
+          <div className="mt-4 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-center">
+            <div className="flex justify-center lg:justify-start">
+              <SlaGauge value={uptime} />
+            </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <NocStatCard
-            icon={<Activity className="h-3 w-3" />}
-            label="Status"
-            value={status}
-            hint="Tier do dia"
-          />
-          <NocStatCard
-            icon={<Zap className="h-3 w-3" />}
-            label="XP Hoje"
-            value={`+${xpToday}`}
-            hint="Recompensa acumulada"
-          />
-          <NocStatCard
-            icon={<Radar className="h-3 w-3" />}
-            label="Probe"
-            value={loading ? "..." : "60s"}
-            hint="Auto-refresh + realtime"
-          />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <NocStatCard
+                icon={<Activity className="h-3 w-3" />}
+                label="Status"
+                value={status}
+                hint="Tier do dia"
+              />
+              <NocStatCard
+                icon={<Zap className="h-3 w-3" />}
+                label="XP Hoje"
+                value={`+${xpToday}`}
+                hint="Recompensa acumulada"
+              />
+              <NocStatCard
+                icon={<Radar className="h-3 w-3" />}
+                label="Probe"
+                value={loading ? "..." : "60s"}
+                hint="Auto-refresh + realtime"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <NocDailyXpAuditLog />
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
