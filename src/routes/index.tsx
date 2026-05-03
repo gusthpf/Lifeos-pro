@@ -956,6 +956,23 @@ function NocPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
+  // Realtime: refresh when workouts change for this user
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`noc-discipline-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        probe,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   const isOnline = status === "online";
   const isOffline = status === "offline";
   const accentVar = isOnline ? "var(--noc-online)" : "var(--noc-offline)";
