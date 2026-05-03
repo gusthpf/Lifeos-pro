@@ -511,7 +511,6 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
-  const [workoutsXpToday, setWorkoutsXpToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
   const today = useBahiaToday();
@@ -519,30 +518,17 @@ function NocDashboardV2() {
   async function load() {
     if (!user) {
       setRow(null);
-      setWorkoutsXpToday(0);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const nextDay = getNextDateISO(today);
-    const [{ data }, { data: workouts }] = await Promise.all([
-      supabase
-        .from("daily_sla_monitor" as any)
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("reference_date", today)
-        .maybeSingle(),
-      supabase
-        .from("workouts")
-        .select("xp_earned")
-        .eq("user_id", user.id)
-        .gte("created_at", `${today}T00:00:00-03:00`)
-        .lt("created_at", `${nextDay}T00:00:00-03:00`),
-    ]);
+    const { data } = await supabase
+      .from("daily_sla_monitor" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("reference_date", today)
+      .maybeSingle();
     setRow((data as SlaRow | null) ?? null);
-    setWorkoutsXpToday(
-      (workouts ?? []).reduce((sum, workout) => sum + Number(workout.xp_earned ?? 0), 0),
-    );
     setLoading(false);
   }
 
@@ -553,7 +539,7 @@ function NocDashboardV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, today]);
 
-  // Realtime: any new workout / habit_log / todo refreshes the gauge.
+  // Realtime: any new workout / habit_log / todo / strategy refreshes the gauge.
   useEffect(() => {
     if (!user) return;
     const ch = supabase
@@ -568,6 +554,16 @@ function NocDashboardV2() {
         { event: "*", schema: "public", table: "habit_logs", filter: `user_id=eq.${user.id}` },
         load,
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "todo_list", filter: `user_id=eq.${user.id}` },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "strategies", filter: `user_id=eq.${user.id}` },
+        load,
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -576,7 +572,7 @@ function NocDashboardV2() {
   }, [user?.id]);
 
   const uptime = Number(row?.uptime_percentage ?? 0) || 0;
-  const xpToday = workoutsXpToday;
+  const xpToday = Number(row?.realized_xp ?? 0) || 0;
   const status =
     row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
@@ -653,65 +649,176 @@ function NocDashboardV2() {
   );
 }
 
-type DailyXpRow = {
-  data_log: string;
-  total_xp_dia: number | string | null;
-  total_atividades: number | string | null;
+type AuditEvent = {
+  id: string;
+  ts: string; // ISO timestamp
+  source: "Treino" | "Hábito" | "To-do" | "Estratégia";
+  title: string;
+  xp: number;
 };
 
 function NocDailyXpAuditLog() {
   const { user } = AuthCtx.useAuth();
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<DailyXpRow[]>([]);
+  const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"7d" | "month" | "all">("7d");
 
+  async function loadEvents() {
+    if (!user) return;
+    setLoading(true);
+    const sinceIso = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const [
+      { data: workouts },
+      { data: habitLogs },
+      { data: habits },
+      { data: todos },
+      { data: strategies },
+    ] = await Promise.all([
+      supabase
+        .from("workouts")
+        .select("id,workout_type,category,exercise_name,xp_earned,created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("habit_logs")
+        .select("id,habit_id,notes,completed_at,updated_at")
+        .eq("user_id", user.id)
+        .gte("completed_at", sinceIso.slice(0, 10))
+        .order("completed_at", { ascending: false }),
+      supabase.from("habits").select("id,title").eq("user_id", user.id),
+      supabase
+        .from("todo_list")
+        .select("id,title,priority,completed_at,is_completed")
+        .eq("user_id", user.id)
+        .eq("is_completed", true)
+        .not("completed_at", "is", null)
+        .gte("completed_at", sinceIso)
+        .order("completed_at", { ascending: false }),
+      supabase
+        .from("strategies")
+        .select("id,title,is_completed,updated_at")
+        .eq("user_id", user.id)
+        .eq("is_completed", true)
+        .gte("updated_at", sinceIso)
+        .order("updated_at", { ascending: false }),
+    ]);
+
+    const habitTitle = new Map<string, string>(
+      (habits ?? []).map((h: any) => [h.id, h.title as string]),
+    );
+
+    const list: AuditEvent[] = [];
+    (workouts ?? []).forEach((w: any) => {
+      list.push({
+        id: `w-${w.id}`,
+        ts: w.created_at,
+        source: "Treino",
+        title:
+          w.workout_type ||
+          w.category ||
+          w.exercise_name ||
+          "Treino registrado",
+        xp: Number(w.xp_earned) || 0,
+      });
+    });
+    (habitLogs ?? []).forEach((h: any) => {
+      list.push({
+        id: `h-${h.id}`,
+        ts: h.updated_at || `${h.completed_at}T12:00:00-03:00`,
+        source: "Hábito",
+        title:
+          (h.habit_id && habitTitle.get(h.habit_id)) ||
+          (typeof h.notes === "string" && h.notes.trim()) ||
+          "Hábito concluído",
+        xp: 30,
+      });
+    });
+    (todos ?? []).forEach((t: any) => {
+      const xp =
+        t.priority === "Alta" ? 50 : t.priority === "Média" ? 30 : t.priority === "Baixa" ? 15 : 0;
+      list.push({
+        id: `t-${t.id}`,
+        ts: t.completed_at,
+        source: "To-do",
+        title: t.title || "Tarefa concluída",
+        xp,
+      });
+    });
+    (strategies ?? []).forEach((s: any) => {
+      list.push({
+        id: `s-${s.id}`,
+        ts: s.updated_at,
+        source: "Estratégia",
+        title: s.title || "Estratégia concluída",
+        xp: 50,
+      });
+    });
+
+    list.sort((a, b) => (a.ts < b.ts ? 1 : -1));
+    setEvents(list);
+    setLoading(false);
+  }
+
   useEffect(() => {
     if (!user || !open) return;
-    let active = true;
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("daily_xp_summary" as any)
-        .select("data_log, total_xp_dia, total_atividades")
-        .order("data_log", { ascending: false })
-        .limit(365);
-      if (!active) return;
-      if (error) {
-        console.error("[NocDailyXpAuditLog] fetch error", error);
-        setRows([]);
-      } else {
-        setRows((data ?? []) as unknown as DailyXpRow[]);
-      }
-      setLoading(false);
-    })();
+    loadEvents();
+    const ch = supabase
+      .channel(`noc-audit-detail-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        loadEvents,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "habit_logs", filter: `user_id=eq.${user.id}` },
+        loadEvents,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "todo_list", filter: `user_id=eq.${user.id}` },
+        loadEvents,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "strategies", filter: `user_id=eq.${user.id}` },
+        loadEvents,
+      )
+      .subscribe();
     return () => {
-      active = false;
+      supabase.removeChannel(ch);
     };
-  }, [user, open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, open]);
 
   const filtered = useMemo(() => {
-    if (filter === "7d") return rows.slice(0, 7);
+    const now = new Date();
+    if (filter === "7d") {
+      const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return events.filter((e) => new Date(e.ts) >= cutoff);
+    }
     if (filter === "month") {
-      const now = new Date();
       const y = now.getFullYear();
       const m = now.getMonth();
-      return rows.filter((r) => {
-        const d = new Date(r.data_log + "T00:00:00");
+      return events.filter((e) => {
+        const d = new Date(e.ts);
         return d.getFullYear() === y && d.getMonth() === m;
       });
     }
-    return rows;
-  }, [rows, filter]);
+    return events;
+  }, [events, filter]);
 
-  const totalXp = filtered.reduce((acc, r) => acc + (Number(r.total_xp_dia) || 0), 0);
+  const totalXp = filtered.reduce((acc, e) => acc + e.xp, 0);
 
-  const fmtDate = (iso: string) => {
-    const d = new Date(iso + "T00:00:00");
+  const fmtDateTime = (iso: string) => {
+    const d = new Date(iso);
     const dd = String(d.getDate()).padStart(2, "0");
     const mo = String(d.getMonth() + 1).padStart(2, "0");
-    const yy = d.getFullYear();
-    return `${dd}/${mo}/${yy}`;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${dd}/${mo} ${hh}:${mm}`;
   };
 
   const filters: { id: "7d" | "month" | "all"; label: string }[] = [
@@ -746,7 +853,6 @@ function NocDailyXpAuditLog() {
 
       {open && (
         <div className="space-y-3 px-4 pb-4 pt-2">
-          {/* Filtros */}
           <div className="flex flex-wrap gap-2">
             {filters.map((f) => (
               <button
@@ -767,7 +873,6 @@ function NocDailyXpAuditLog() {
             ))}
           </div>
 
-          {/* Tabela */}
           <div
             className="overflow-hidden rounded border"
             style={{ borderColor: "var(--audit-border)" }}
@@ -778,41 +883,59 @@ function NocDailyXpAuditLog() {
                 style={{ background: "var(--audit-surface)", color: "var(--audit-accent)" }}
               >
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium">Data</th>
-                  <th className="px-3 py-2 text-right font-medium">Total XP</th>
+                  <th className="px-3 py-2 text-left font-medium">Quando</th>
+                  <th className="px-3 py-2 text-left font-medium">Fonte</th>
+                  <th className="px-3 py-2 text-left font-medium">Ação</th>
+                  <th className="px-3 py-2 text-right font-medium">XP</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={2} className="px-3 py-6 text-center">
+                    <td colSpan={4} className="px-3 py-6 text-center">
                       <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin" />
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={2}
+                      colSpan={4}
                       className="px-3 py-6 text-center opacity-60"
                       style={{ color: "var(--audit-fg)" }}
                     >
-                      Nenhum registro no período.
+                      Nenhum evento no período.
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r, i) => (
+                  filtered.map((e, i) => (
                     <tr
-                      key={r.data_log}
+                      key={e.id}
                       style={{
                         borderTop: i === 0 ? "none" : "1px solid var(--audit-border)",
                       }}
                     >
-                      <td className="px-3 py-2">{fmtDate(r.data_log)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 opacity-80">
+                        {fmtDateTime(e.ts)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className="rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wider"
+                          style={{
+                            borderColor: "var(--audit-border)",
+                            color: "var(--audit-accent)",
+                          }}
+                        >
+                          {e.source}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 truncate max-w-[260px]" title={e.title}>
+                        {e.title}
+                      </td>
                       <td
                         className="px-3 py-2 text-right font-semibold"
                         style={{ color: "var(--audit-accent)" }}
                       >
-                        +{Number(r.total_xp_dia) || 0}
+                        +{e.xp}
                       </td>
                     </tr>
                   ))
@@ -823,8 +946,11 @@ function NocDailyXpAuditLog() {
                   style={{ background: "var(--audit-surface)", color: "var(--audit-accent)" }}
                 >
                   <tr>
-                    <td className="px-3 py-2 text-[10px] uppercase tracking-widest">
-                      Total ({filtered.length} {filtered.length === 1 ? "dia" : "dias"})
+                    <td
+                      colSpan={3}
+                      className="px-3 py-2 text-[10px] uppercase tracking-widest"
+                    >
+                      Total ({filtered.length} {filtered.length === 1 ? "evento" : "eventos"})
                     </td>
                     <td className="px-3 py-2 text-right font-bold">+{totalXp}</td>
                   </tr>
@@ -855,18 +981,13 @@ function NocPanel() {
 
   async function probe() {
     setStatus("loading");
-    // Isolate: count only logs that look like a TRAINING log today.
-    // Criterion: habit.title matches /treino|muscul/i  OR  notes match the same.
-    const trainingTitle = /(treino|muscul)/i;
-    const [{ data: habits }, { data: logs, error }] = await Promise.all([
-      supabase.from("habits").select("id,title"),
-      supabase.from("habit_logs").select("id,habit_id,notes").eq("completed_at", today),
-    ]);
-    const trainingHabitIds = new Set(
-      (habits ?? [])
-        .filter((h: any) => trainingTitle.test(h.title ?? ""))
-        .map((h: any) => h.id as string),
-    );
+    // Accept ANY workout registered today (qualquer treino conta).
+    const nextDay = getNextDateISO(today);
+    const { data: workouts, error } = await supabase
+      .from("workouts")
+      .select("id")
+      .gte("created_at", `${today}T00:00:00-03:00`)
+      .lt("created_at", `${nextDay}T00:00:00-03:00`);
     const now = new Date().toLocaleTimeString("pt-BR", {
       timeZone: "America/Bahia",
       hour12: false,
@@ -877,12 +998,7 @@ function NocPanel() {
       setLogCount(0);
       return;
     }
-    const trainingLogs = (logs ?? []).filter((l: any) => {
-      if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
-      if (typeof l.notes === "string" && trainingTitle.test(l.notes)) return true;
-      return false;
-    });
-    const count = trainingLogs.length;
+    const count = (workouts ?? []).length;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
   }
@@ -965,6 +1081,23 @@ function NocPanel() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
+
+  // Realtime: refresh when workouts change for this user
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`noc-discipline-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
+        probe,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const isOnline = status === "online";
   const isOffline = status === "offline";
