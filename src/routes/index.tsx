@@ -511,7 +511,6 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
-  const [workoutsXpToday, setWorkoutsXpToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
   const today = useBahiaToday();
@@ -519,30 +518,17 @@ function NocDashboardV2() {
   async function load() {
     if (!user) {
       setRow(null);
-      setWorkoutsXpToday(0);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const nextDay = getNextDateISO(today);
-    const [{ data }, { data: workouts }] = await Promise.all([
-      supabase
-        .from("daily_sla_monitor" as any)
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("reference_date", today)
-        .maybeSingle(),
-      supabase
-        .from("workouts")
-        .select("xp_earned")
-        .eq("user_id", user.id)
-        .gte("created_at", `${today}T00:00:00-03:00`)
-        .lt("created_at", `${nextDay}T00:00:00-03:00`),
-    ]);
+    const { data } = await supabase
+      .from("daily_sla_monitor" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("reference_date", today)
+      .maybeSingle();
     setRow((data as SlaRow | null) ?? null);
-    setWorkoutsXpToday(
-      (workouts ?? []).reduce((sum, workout) => sum + Number(workout.xp_earned ?? 0), 0),
-    );
     setLoading(false);
   }
 
@@ -553,7 +539,7 @@ function NocDashboardV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, today]);
 
-  // Realtime: any new workout / habit_log / todo refreshes the gauge.
+  // Realtime: any new workout / habit_log / todo / strategy refreshes the gauge.
   useEffect(() => {
     if (!user) return;
     const ch = supabase
@@ -568,6 +554,16 @@ function NocDashboardV2() {
         { event: "*", schema: "public", table: "habit_logs", filter: `user_id=eq.${user.id}` },
         load,
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "todo_list", filter: `user_id=eq.${user.id}` },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "strategies", filter: `user_id=eq.${user.id}` },
+        load,
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -576,7 +572,7 @@ function NocDashboardV2() {
   }, [user?.id]);
 
   const uptime = Number(row?.uptime_percentage ?? 0) || 0;
-  const xpToday = workoutsXpToday;
+  const xpToday = Number(row?.realized_xp ?? 0) || 0;
   const status =
     row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
