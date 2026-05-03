@@ -78,7 +78,7 @@ export function CalendarTab() {
       .select("id,title,description,start_time,end_time")
       .order("start_time", { ascending: true });
     if (error) {
-      toast.error("Falha ao carregar compromissos", { description: error.message });
+      toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
       return;
     }
     const parsed: CalEvent[] = (data ?? []).map((a: Appointment) => {
@@ -142,7 +142,7 @@ export function CalendarTab() {
       : await supabase.from("appointments").insert(payload);
     setSaving(false);
     if (error) {
-      toast.error("Falha ao salvar", { description: error.message });
+      toast.error("Falha ao salvar", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success(editing ? "Compromisso atualizado" : "Compromisso criado");
@@ -157,7 +157,7 @@ export function CalendarTab() {
     const { error } = await supabase.from("appointments").delete().eq("id", editing.id);
     setDeleting(false);
     if (error) {
-      toast.error("Falha ao excluir", { description: error.message });
+      toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Compromisso excluído");
