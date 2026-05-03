@@ -40,7 +40,8 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      console.error("signIn error", error);
+      toast.error("Falha ao entrar", { description: "Verifique suas credenciais." });
       return;
     }
     toast.success("Login realizado!");
@@ -60,7 +61,8 @@ function AuthPage() {
     });
     if (error) {
       setLoading(false);
-      toast.error(error.message);
+      console.error("signUp error", error);
+      toast.error("Falha ao criar conta", { description: "Tente novamente mais tarde." });
       return;
     }
     // Create profile row if a session exists immediately (email confirmation off)
