@@ -28,6 +28,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Sanitize: strip system roles, cap count and content size to prevent prompt injection / abuse
+    const MAX_MESSAGES = 50;
+    const MAX_CONTENT_LEN = 4000;
+    const safeMessages = messages
+      .filter((m: any) => m && (m.role === "user" || m.role === "assistant"))
+      .slice(-MAX_MESSAGES)
+      .map((m: any) => ({
+        role: m.role as "user" | "assistant",
+        content: String(m.content ?? "").slice(0, MAX_CONTENT_LEN),
+      }));
+
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -36,7 +47,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...safeMessages],
       }),
     });
 
