@@ -416,7 +416,7 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
     });
     setSubmitting(false);
     if (error) {
-      toast.error("Falha ao registrar ticket", { description: error.message });
+      toast.error("Falha ao registrar ticket", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Ticket registrado. SLA recalculado com sucesso.");
@@ -925,7 +925,7 @@ function NocPanel() {
     });
     if (error) {
       setRegistering(false);
-      toast.error("Falha ao registrar treino", { description: error.message });
+      toast.error("Falha ao registrar treino", { description: "Tente novamente mais tarde." });
       return;
     }
 
@@ -943,7 +943,7 @@ function NocPanel() {
     });
     setRegistering(false);
     if (wErr) {
-      toast.error("Treino registrado, mas falha ao computar XP", { description: wErr.message });
+      toast.error("Treino registrado, mas falha ao computar XP", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("TREINO CONCLUÍDO: +50 XP de Performance Física", {
@@ -1679,7 +1679,7 @@ function DojoTab() {
       .insert({ habit_id: habit.id, completed_at: today, user_id: user.id });
     setPending(null);
     if (error) {
-      toast.error("Falha no check-in", { description: error.message });
+      toast.error("Falha no check-in", { description: "Tente novamente mais tarde." });
       return;
     }
     setCompletedToday((s) => new Set(s).add(habit.id));
@@ -1694,7 +1694,7 @@ function DojoTab() {
     const { error } = await supabase.from("habits").delete().eq("id", habit.id);
     setDeleting(null);
     if (error) {
-      toast.error("Falha ao excluir", { description: error.message });
+      toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
     setHabits((curr) => (curr ?? []).filter((h) => h.id !== habit.id));
@@ -1887,7 +1887,7 @@ function StrategyTab() {
       .eq("id", g.id);
     setBusy(null);
     if (error) {
-      toast.error("Falha ao concluir", { description: error.message });
+      toast.error("Falha ao concluir", { description: "Tente novamente mais tarde." });
       return;
     }
     setGoals((curr) =>
@@ -1904,7 +1904,7 @@ function StrategyTab() {
     const { error } = await supabase.from("life_goals").delete().eq("id", g.id);
     setBusy(null);
     if (error) {
-      toast.error("Falha ao excluir", { description: error.message });
+      toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
     setGoals((curr) => (curr ?? []).filter((x) => x.id !== g.id));
@@ -2087,7 +2087,7 @@ function TodoTab() {
       .select("id,title,priority,is_completed,created_at,completed_at")
       .order("created_at", { ascending: false });
     if (error) {
-      toast.error("Falha ao carregar tarefas", { description: error.message });
+      toast.error("Falha ao carregar tarefas", { description: "Tente novamente mais tarde." });
       setItems([]);
       return;
     }
@@ -2114,7 +2114,7 @@ function TodoTab() {
       .single();
     setCreating(false);
     if (error) {
-      toast.error("Falha ao criar tarefa", { description: error.message });
+      toast.error("Falha ao criar tarefa", { description: "Tente novamente mais tarde." });
       return;
     }
     setItems((curr) => [data as TodoItem, ...(curr ?? [])]);
@@ -2133,7 +2133,7 @@ function TodoTab() {
       .single();
     setBusy(null);
     if (error) {
-      toast.error("Falha ao atualizar", { description: error.message });
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
       return;
     }
     setItems((curr) => (curr ?? []).map((x) => (x.id === item.id ? (data as TodoItem) : x)));
@@ -2145,7 +2145,7 @@ function TodoTab() {
     const { error } = await supabase.from("todo_list").delete().eq("id", item.id);
     setBusy(null);
     if (error) {
-      toast.error("Falha ao excluir", { description: error.message });
+      toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
     setItems((curr) => (curr ?? []).filter((x) => x.id !== item.id));
@@ -2478,7 +2478,7 @@ function ReflectionTab() {
       .insert({ content, sentiment, user_id: user.id });
     setSaving(false);
     if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
+      toast.error("Erro ao salvar", { description: "Tente novamente mais tarde." });
       return;
     }
     setContent("");
@@ -2495,7 +2495,7 @@ function ReflectionTab() {
       if ((data as any)?.error) throw new Error((data as any).error);
       setCoach(data as CoachResponse);
     } catch (e: any) {
-      toast.error("Coach indisponível", { description: e?.message ?? "Tente novamente." });
+      toast.error("Coach indisponível", { description: "Tente novamente mais tarde." });
     } finally {
       setCoaching(false);
     }
@@ -3009,7 +3009,7 @@ function NexusTab() {
       const reply = (data as any)?.message ?? "";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (e: any) {
-      toast.error("Nexus offline", { description: e?.message ?? "Tente novamente." });
+      toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
       setMessages((m) => m.slice(0, -1));
       setInput(text);
     } finally {
@@ -3041,7 +3041,7 @@ function NexusTab() {
 
     if (error) {
       setSavingIdx(null);
-      toast.error("Falha ao salvar na Wiki", { description: error.message });
+      toast.error("Falha ao salvar na Wiki", { description: "Tente novamente mais tarde." });
       return;
     }
 
@@ -3237,7 +3237,7 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
     });
     setSaving(false);
     if (error) {
-      toast.error("Falha ao criar hábito", { description: error.message });
+      toast.error("Falha ao criar hábito", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Hábito criado");
@@ -3383,7 +3383,7 @@ function EditHabitModal({
     const { error } = await supabase.from("habits").update(updates).eq("id", habit.id);
     setSaving(false);
     if (error) {
-      toast.error("Falha ao editar hábito", { description: error.message });
+      toast.error("Falha ao editar hábito", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Hábito atualizado");
@@ -3488,7 +3488,7 @@ function NewGoalModal({ open, onClose }: { open: boolean; onClose: () => void })
     });
     setSaving(false);
     if (error) {
-      toast.error("Falha ao criar estratégia", { description: error.message });
+      toast.error("Falha ao criar estratégia", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Estratégia criada");
@@ -3622,7 +3622,7 @@ function EditGoalModal({
     const { error } = await supabase.from("life_goals").update(updates).eq("id", goal.id);
     setSaving(false);
     if (error) {
-      toast.error("Falha ao editar estratégia", { description: error.message });
+      toast.error("Falha ao editar estratégia", { description: "Tente novamente mais tarde." });
       return;
     }
     toast.success("Estratégia atualizada");
