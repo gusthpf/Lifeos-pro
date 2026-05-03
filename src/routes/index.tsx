@@ -855,18 +855,13 @@ function NocPanel() {
 
   async function probe() {
     setStatus("loading");
-    // Isolate: count only logs that look like a TRAINING log today.
-    // Criterion: habit.title matches /treino|muscul/i  OR  notes match the same.
-    const trainingTitle = /(treino|muscul)/i;
-    const [{ data: habits }, { data: logs, error }] = await Promise.all([
-      supabase.from("habits").select("id,title"),
-      supabase.from("habit_logs").select("id,habit_id,notes").eq("completed_at", today),
-    ]);
-    const trainingHabitIds = new Set(
-      (habits ?? [])
-        .filter((h: any) => trainingTitle.test(h.title ?? ""))
-        .map((h: any) => h.id as string),
-    );
+    // Accept ANY workout registered today (qualquer treino conta).
+    const nextDay = getNextDateISO(today);
+    const { data: workouts, error } = await supabase
+      .from("workouts")
+      .select("id")
+      .gte("created_at", `${today}T00:00:00-03:00`)
+      .lt("created_at", `${nextDay}T00:00:00-03:00`);
     const now = new Date().toLocaleTimeString("pt-BR", {
       timeZone: "America/Bahia",
       hour12: false,
@@ -877,12 +872,7 @@ function NocPanel() {
       setLogCount(0);
       return;
     }
-    const trainingLogs = (logs ?? []).filter((l: any) => {
-      if (l.habit_id && trainingHabitIds.has(l.habit_id)) return true;
-      if (typeof l.notes === "string" && trainingTitle.test(l.notes)) return true;
-      return false;
-    });
-    const count = trainingLogs.length;
+    const count = (workouts ?? []).length;
     setLogCount(count);
     setStatus(count > 0 ? "online" : "offline");
   }
