@@ -1,0 +1,1 @@
+CREATE POLICY "Users view own daily activities" ON public.daily_activities FOR SELECT TO authenticated USING (auth.uid() = user_id);

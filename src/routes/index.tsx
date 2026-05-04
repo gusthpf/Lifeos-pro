@@ -508,6 +508,148 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
   );
 }
 
+function RcaAlertBanner() {
+  const { user } = AuthCtx.useAuth();
+  const today = useBahiaToday();
+  const [breachDate, setBreachDate] = useState<string | null>(null);
+  const [breachUptime, setBreachUptime] = useState<number>(0);
+  const [open, setOpen] = useState(false);
+  const [rootCause, setRootCause] = useState("");
+  const [actionPlan, setActionPlan] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      const yest = new Date(today + "T12:00:00");
+      yest.setDate(yest.getDate() - 1);
+      const yIso = yest.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("daily_sla_monitor" as any)
+        .select("reference_date,uptime_percentage")
+        .eq("user_id", user.id)
+        .in("reference_date", [yIso, today])
+        .order("reference_date", { ascending: false });
+      if (!active) return;
+      const rows = ((data ?? []) as unknown) as Array<{ reference_date: string; uptime_percentage: number }>;
+      const breach = rows.find((r) => Number(r.uptime_percentage) < 50);
+      if (breach) {
+        // already filed?
+        const { data: existing } = await supabase
+          .from("rca_logs")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("downtime_date", breach.reference_date)
+          .maybeSingle();
+        if (!existing) {
+          setBreachDate(breach.reference_date);
+          setBreachUptime(Number(breach.uptime_percentage));
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, today]);
+
+  async function submit() {
+    if (!user || !breachDate || !rootCause || !actionPlan.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("rca_logs").insert({
+      user_id: user.id,
+      downtime_date: breachDate,
+      sla_percentage: breachUptime,
+      root_cause: rootCause,
+      action_plan: actionPlan.trim(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível salvar o RCA. Tente novamente mais tarde.");
+      return;
+    }
+    toast.success("RCA registrado");
+    setOpen(false);
+    setDismissed(true);
+    setBreachDate(null);
+  }
+
+  if (!breachDate || dismissed) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mb-3 flex w-full items-center gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-4 py-2.5 text-left text-sm text-amber-900 shadow-sm transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/15"
+        aria-label="Abrir formulário de RCA"
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span className="flex-1">
+          <span className="font-semibold">SLA crítico em {breachDate}</span>
+          <span className="ml-2 opacity-80">
+            ({breachUptime.toFixed(1)}% uptime). Sugerimos abrir um RCA.
+          </span>
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-widest">Abrir RCA →</span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Análise de Causa Raiz (RCA)</DialogTitle>
+            <DialogDescription>
+              Documente o incidente para evitar recorrências.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Data do Incidente</Label>
+              <Input value={breachDate} readOnly disabled />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Causa Raiz</Label>
+              <Select value={rootCause} onValueChange={setRootCause}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a causa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cansaço">Cansaço</SelectItem>
+                  <SelectItem value="Falta de Tempo">Falta de Tempo</SelectItem>
+                  <SelectItem value="Procrastinação">Procrastinação</SelectItem>
+                  <SelectItem value="Evento Externo">Evento Externo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Plano de Ação</Label>
+              <Textarea
+                rows={4}
+                value={actionPlan}
+                onChange={(e) => setActionPlan(e.target.value)}
+                placeholder="O que será feito para mitigar o problema?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={submit}
+              disabled={saving || !rootCause || !actionPlan.trim()}
+              className="bg-[#545B62] text-white hover:bg-[#545B62]/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar RCA"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
@@ -577,10 +719,12 @@ function NocDashboardV2() {
     row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
   return (
-    <section
-      className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6"
-      aria-label="NOC Dashboard v2.0"
-    >
+    <>
+      <RcaAlertBanner />
+      <section
+        className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6"
+        aria-label="NOC Dashboard v2.0"
+      >
       <SystemTicker uptime={uptime} />
 
       <div className="mt-4 flex items-center justify-between">
@@ -645,7 +789,8 @@ function NocDashboardV2() {
           </div>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -1438,6 +1583,7 @@ function NocAuditLog() {
 
       {open && (
         <div className="space-y-3 px-4 pb-4 pt-2">
+          <MonthlyHaPanel />
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <KpiCard label="Uptime de Treino" value={fmtUptime(totals.minutes)} />
@@ -1678,7 +1824,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -1700,7 +1846,37 @@ function LifeCoachApp() {
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Archive className="h-4 w-4" /> Config
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dojo" className="mt-6">
+            <DojoTab />
+          </TabsContent>
+          <TabsContent value="estrategia" className="mt-6">
+            <StrategyTab />
+          </TabsContent>
+          <TabsContent value="todo" className="mt-6">
+            <TodoTab />
+          </TabsContent>
+          <TabsContent value="calendario" className="mt-6">
+            <div className="-mx-6 px-2 sm:px-6">
+              <CalendarTab />
+            </div>
+          </TabsContent>
+          <TabsContent value="reflexao" className="mt-6">
+            <ReflectionTab />
+          </TabsContent>
+          <TabsContent value="metricas" className="mt-6">
+            <MetricsTab />
+          </TabsContent>
+          <TabsContent value="nexus" className="mt-6">
+            <NexusTab />
+          </TabsContent>
+          <TabsContent value="settings" className="mt-6">
+            <SettingsTab />
+          </TabsContent>
 
           <TabsContent value="dojo" className="mt-6">
             <DojoTab />
@@ -3817,5 +3993,159 @@ function EditGoalModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ============ MONTHLY HA PANEL ============ */
+function MonthlyHaPanel() {
+  const { user } = AuthCtx.useAuth();
+  const [pct, setPct] = useState<number | null>(null);
+  const [monthLabel, setMonthLabel] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const ym = new Date().toISOString().slice(0, 7);
+      const { data } = await supabase
+        .from("monthly_ha_summary" as any)
+        .select("month_log,avg_uptime_month")
+        .eq("user_id", user.id)
+        .order("month_log", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!active) return;
+      const row = (data as any) ?? null;
+      setPct(row ? Number(row.avg_uptime_month) : 0);
+      setMonthLabel(row?.month_log ?? ym);
+      setLoading(false);
+    })();
+  }, [user?.id]);
+
+  const value = pct ?? 0;
+  const tier =
+    value >= 95
+      ? { label: "Excelente", color: "#10b981", bg: "rgba(16,185,129,0.12)" }
+      : value >= 80
+        ? { label: "Atenção", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" }
+        : { label: "Crítico", color: "#ef4444", bg: "rgba(239,68,68,0.12)" };
+
+  return (
+    <div
+      className="rounded-md border p-3"
+      style={{ borderColor: "var(--audit-border)", background: "var(--audit-surface)" }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest"
+            style={{ color: "var(--audit-fg-muted)" }}
+          >
+            Disponibilidade Mensal · Métricas HA
+          </p>
+          <p className="mt-0.5 text-[11px]" style={{ color: "var(--audit-fg-subtle)" }}>
+            {monthLabel}
+          </p>
+        </div>
+        <div
+          className="flex items-center gap-2 rounded px-3 py-1.5"
+          style={{ background: tier.bg, color: tier.color }}
+        >
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ background: tier.color }}
+          />
+          <span className="font-mono text-base font-semibold">
+            {loading ? "…" : `${value.toFixed(1)}%`}
+          </span>
+          <span className="text-[10px] uppercase tracking-widest">{tier.label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============ SETTINGS / DATA EXPORT ============ */
+function SettingsTab() {
+  const { user } = AuthCtx.useAuth();
+  const [exporting, setExporting] = useState(false);
+
+  function csvEscape(v: unknown): string {
+    const s = v == null ? "" : String(v);
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  async function exportCsv() {
+    if (!user) return;
+    setExporting(true);
+    const { data, error } = await supabase
+      .from("daily_activities" as any)
+      .select("created_at,category,description,xp_reward")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    setExporting(false);
+    if (error) {
+      toast.error("Não foi possível exportar agora. Tente novamente mais tarde.");
+      return;
+    }
+    const rows = ((data ?? []) as unknown) as Array<{
+      created_at: string;
+      category: string | null;
+      description: string;
+      xp_reward: number;
+    }>;
+    const header = ["Data de Criação", "Categoria", "Atividade", "XP Ganho"];
+    const lines = [header.join(",")];
+    rows.forEach((r) => {
+      lines.push(
+        [
+          csvEscape(new Date(r.created_at).toLocaleString("pt-BR")),
+          csvEscape(r.category ?? ""),
+          csvEscape(r.description),
+          csvEscape(r.xp_reward),
+        ].join(","),
+      );
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lifeos-backup-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${rows.length} registros exportados`);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Portabilidade de Dados</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Faça o backup completo das suas atividades em formato CSV. O arquivo
+            inclui data, categoria, atividade e XP ganho.
+          </p>
+          <Button
+            onClick={exportCsv}
+            disabled={exporting || !user}
+            className="bg-[#545B62] text-white hover:bg-[#545B62]/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            Exportar meus dados (Backup CSV)
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
