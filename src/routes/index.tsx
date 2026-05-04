@@ -789,7 +789,8 @@ function NocDashboardV2() {
           </div>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
