@@ -4091,7 +4091,7 @@ function SettingsTab() {
       toast.error("Não foi possível exportar agora. Tente novamente mais tarde.");
       return;
     }
-    const rows = (data ?? []) as Array<{
+    const rows = ((data ?? []) as unknown) as Array<{
       created_at: string;
       category: string | null;
       description: string;
