@@ -1824,7 +1824,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -1846,7 +1846,37 @@ function LifeCoachApp() {
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Archive className="h-4 w-4" /> Config
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dojo" className="mt-6">
+            <DojoTab />
+          </TabsContent>
+          <TabsContent value="estrategia" className="mt-6">
+            <StrategyTab />
+          </TabsContent>
+          <TabsContent value="todo" className="mt-6">
+            <TodoTab />
+          </TabsContent>
+          <TabsContent value="calendario" className="mt-6">
+            <div className="-mx-6 px-2 sm:px-6">
+              <CalendarTab />
+            </div>
+          </TabsContent>
+          <TabsContent value="reflexao" className="mt-6">
+            <ReflectionTab />
+          </TabsContent>
+          <TabsContent value="metricas" className="mt-6">
+            <MetricsTab />
+          </TabsContent>
+          <TabsContent value="nexus" className="mt-6">
+            <NexusTab />
+          </TabsContent>
+          <TabsContent value="settings" className="mt-6">
+            <SettingsTab />
+          </TabsContent>
 
           <TabsContent value="dojo" className="mt-6">
             <DojoTab />
