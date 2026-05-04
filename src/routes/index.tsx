@@ -1583,6 +1583,7 @@ function NocAuditLog() {
 
       {open && (
         <div className="space-y-3 px-4 pb-4 pt-2">
+          <MonthlyHaPanel />
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <KpiCard label="Uptime de Treino" value={fmtUptime(totals.minutes)} />
