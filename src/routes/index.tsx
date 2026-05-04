@@ -533,7 +533,7 @@ function RcaAlertBanner() {
         .in("reference_date", [yIso, today])
         .order("reference_date", { ascending: false });
       if (!active) return;
-      const rows = (data ?? []) as Array<{ reference_date: string; uptime_percentage: number }>;
+      const rows = ((data ?? []) as unknown) as Array<{ reference_date: string; uptime_percentage: number }>;
       const breach = rows.find((r) => Number(r.uptime_percentage) < 50);
       if (breach) {
         // already filed?
