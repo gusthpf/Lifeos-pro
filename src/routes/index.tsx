@@ -719,10 +719,12 @@ function NocDashboardV2() {
     row?.system_status ?? (uptime >= 90 ? "OPERATIONAL" : uptime >= 50 ? "DEGRADED" : "CRITICAL");
 
   return (
-    <section
-      className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6"
-      aria-label="NOC Dashboard v2.0"
-    >
+    <>
+      <RcaAlertBanner />
+      <section
+        className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6"
+        aria-label="NOC Dashboard v2.0"
+      >
       <SystemTicker uptime={uptime} />
 
       <div className="mt-4 flex items-center justify-between">
