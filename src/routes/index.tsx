@@ -1877,30 +1877,6 @@ function LifeCoachApp() {
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
           </TabsContent>
-
-          <TabsContent value="dojo" className="mt-6">
-            <DojoTab />
-          </TabsContent>
-          <TabsContent value="estrategia" className="mt-6">
-            <StrategyTab />
-          </TabsContent>
-          <TabsContent value="todo" className="mt-6">
-            <TodoTab />
-          </TabsContent>
-          <TabsContent value="calendario" className="mt-6">
-            <div className="-mx-6 px-2 sm:px-6">
-              <CalendarTab />
-            </div>
-          </TabsContent>
-          <TabsContent value="reflexao" className="mt-6">
-            <ReflectionTab />
-          </TabsContent>
-          <TabsContent value="metricas" className="mt-6">
-            <MetricsTab />
-          </TabsContent>
-          <TabsContent value="nexus" className="mt-6">
-            <NexusTab />
-          </TabsContent>
         </Tabs>
       </main>
     </div>
