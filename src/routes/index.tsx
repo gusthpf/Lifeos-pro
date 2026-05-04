@@ -685,7 +685,7 @@ function NocDashboardV2() {
   useEffect(() => {
     if (!user) return;
     const ch = supabase
-      .channel(`noc-v2-${user.id}`)
+      .channel(`noc-v2-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
@@ -910,7 +910,7 @@ function NocDailyXpAuditLog() {
     if (!user || !open) return;
     loadEvents();
     const ch = supabase
-      .channel(`noc-audit-detail-${user.id}`)
+      .channel(`noc-audit-detail-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
@@ -1231,7 +1231,7 @@ function NocPanel() {
   useEffect(() => {
     if (!user) return;
     const ch = supabase
-      .channel(`noc-discipline-${user.id}`)
+      .channel(`noc-discipline-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
@@ -1502,7 +1502,7 @@ function NocAuditLog() {
       }
     })();
     const channel = supabase
-      .channel(`noc-audit-${user.id}`)
+      .channel(`noc-audit-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
@@ -1939,7 +1939,7 @@ function DojoTab() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`dojo-realtime-${user.id}`)
+      .channel(`dojo-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "habits", filter: `user_id=eq.${user.id}` },
@@ -2160,7 +2160,7 @@ function StrategyTab() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`strategy-realtime-${user.id}`)
+      .channel(`strategy-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "life_goals", filter: `user_id=eq.${user.id}` },
