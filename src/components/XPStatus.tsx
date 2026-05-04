@@ -77,7 +77,7 @@ export function XPStatus() {
     };
 
     const channel = supabase
-      .channel(`xp-realtime-${user.id}`)
+      .channel(`xp-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
