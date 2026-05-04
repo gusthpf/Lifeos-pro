@@ -508,6 +508,148 @@ function IncidentTicketDialog({ onSubmitted }: { onSubmitted: () => void }) {
   );
 }
 
+function RcaAlertBanner() {
+  const { user } = AuthCtx.useAuth();
+  const today = useBahiaToday();
+  const [breachDate, setBreachDate] = useState<string | null>(null);
+  const [breachUptime, setBreachUptime] = useState<number>(0);
+  const [open, setOpen] = useState(false);
+  const [rootCause, setRootCause] = useState("");
+  const [actionPlan, setActionPlan] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      const yest = new Date(today + "T12:00:00");
+      yest.setDate(yest.getDate() - 1);
+      const yIso = yest.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("daily_sla_monitor" as any)
+        .select("reference_date,uptime_percentage")
+        .eq("user_id", user.id)
+        .in("reference_date", [yIso, today])
+        .order("reference_date", { ascending: false });
+      if (!active) return;
+      const rows = (data ?? []) as Array<{ reference_date: string; uptime_percentage: number }>;
+      const breach = rows.find((r) => Number(r.uptime_percentage) < 50);
+      if (breach) {
+        // already filed?
+        const { data: existing } = await supabase
+          .from("rca_logs")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("downtime_date", breach.reference_date)
+          .maybeSingle();
+        if (!existing) {
+          setBreachDate(breach.reference_date);
+          setBreachUptime(Number(breach.uptime_percentage));
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, today]);
+
+  async function submit() {
+    if (!user || !breachDate || !rootCause || !actionPlan.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("rca_logs").insert({
+      user_id: user.id,
+      downtime_date: breachDate,
+      sla_percentage: breachUptime,
+      root_cause: rootCause,
+      action_plan: actionPlan.trim(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível salvar o RCA. Tente novamente mais tarde.");
+      return;
+    }
+    toast.success("RCA registrado");
+    setOpen(false);
+    setDismissed(true);
+    setBreachDate(null);
+  }
+
+  if (!breachDate || dismissed) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mb-3 flex w-full items-center gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-4 py-2.5 text-left text-sm text-amber-900 shadow-sm transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/15"
+        aria-label="Abrir formulário de RCA"
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span className="flex-1">
+          <span className="font-semibold">SLA crítico em {breachDate}</span>
+          <span className="ml-2 opacity-80">
+            ({breachUptime.toFixed(1)}% uptime). Sugerimos abrir um RCA.
+          </span>
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-widest">Abrir RCA →</span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Análise de Causa Raiz (RCA)</DialogTitle>
+            <DialogDescription>
+              Documente o incidente para evitar recorrências.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Data do Incidente</Label>
+              <Input value={breachDate} readOnly disabled />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Causa Raiz</Label>
+              <Select value={rootCause} onValueChange={setRootCause}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a causa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cansaço">Cansaço</SelectItem>
+                  <SelectItem value="Falta de Tempo">Falta de Tempo</SelectItem>
+                  <SelectItem value="Procrastinação">Procrastinação</SelectItem>
+                  <SelectItem value="Evento Externo">Evento Externo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Plano de Ação</Label>
+              <Textarea
+                rows={4}
+                value={actionPlan}
+                onChange={(e) => setActionPlan(e.target.value)}
+                placeholder="O que será feito para mitigar o problema?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={submit}
+              disabled={saving || !rootCause || !actionPlan.trim()}
+              className="bg-[#545B62] text-white hover:bg-[#545B62]/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar RCA"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function NocDashboardV2() {
   const { user } = AuthCtx.useAuth();
   const [row, setRow] = useState<SlaRow | null>(null);
