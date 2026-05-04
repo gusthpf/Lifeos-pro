@@ -3965,3 +3965,157 @@ function EditGoalModal({
     </Dialog>
   );
 }
+
+/* ============ MONTHLY HA PANEL ============ */
+function MonthlyHaPanel() {
+  const { user } = AuthCtx.useAuth();
+  const [pct, setPct] = useState<number | null>(null);
+  const [monthLabel, setMonthLabel] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const ym = new Date().toISOString().slice(0, 7);
+      const { data } = await supabase
+        .from("monthly_ha_summary" as any)
+        .select("month_log,avg_uptime_month")
+        .eq("user_id", user.id)
+        .order("month_log", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!active) return;
+      const row = (data as any) ?? null;
+      setPct(row ? Number(row.avg_uptime_month) : 0);
+      setMonthLabel(row?.month_log ?? ym);
+      setLoading(false);
+    })();
+  }, [user?.id]);
+
+  const value = pct ?? 0;
+  const tier =
+    value >= 95
+      ? { label: "Excelente", color: "#10b981", bg: "rgba(16,185,129,0.12)" }
+      : value >= 80
+        ? { label: "Atenção", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" }
+        : { label: "Crítico", color: "#ef4444", bg: "rgba(239,68,68,0.12)" };
+
+  return (
+    <div
+      className="rounded-md border p-3"
+      style={{ borderColor: "var(--audit-border)", background: "var(--audit-surface)" }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest"
+            style={{ color: "var(--audit-fg-muted)" }}
+          >
+            Disponibilidade Mensal · Métricas HA
+          </p>
+          <p className="mt-0.5 text-[11px]" style={{ color: "var(--audit-fg-subtle)" }}>
+            {monthLabel}
+          </p>
+        </div>
+        <div
+          className="flex items-center gap-2 rounded px-3 py-1.5"
+          style={{ background: tier.bg, color: tier.color }}
+        >
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ background: tier.color }}
+          />
+          <span className="font-mono text-base font-semibold">
+            {loading ? "…" : `${value.toFixed(1)}%`}
+          </span>
+          <span className="text-[10px] uppercase tracking-widest">{tier.label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============ SETTINGS / DATA EXPORT ============ */
+function SettingsTab() {
+  const { user } = AuthCtx.useAuth();
+  const [exporting, setExporting] = useState(false);
+
+  function csvEscape(v: unknown): string {
+    const s = v == null ? "" : String(v);
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  async function exportCsv() {
+    if (!user) return;
+    setExporting(true);
+    const { data, error } = await supabase
+      .from("daily_activities" as any)
+      .select("created_at,category,description,xp_reward")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    setExporting(false);
+    if (error) {
+      toast.error("Não foi possível exportar agora. Tente novamente mais tarde.");
+      return;
+    }
+    const rows = (data ?? []) as Array<{
+      created_at: string;
+      category: string | null;
+      description: string;
+      xp_reward: number;
+    }>;
+    const header = ["Data de Criação", "Categoria", "Atividade", "XP Ganho"];
+    const lines = [header.join(",")];
+    rows.forEach((r) => {
+      lines.push(
+        [
+          csvEscape(new Date(r.created_at).toLocaleString("pt-BR")),
+          csvEscape(r.category ?? ""),
+          csvEscape(r.description),
+          csvEscape(r.xp_reward),
+        ].join(","),
+      );
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lifeos-backup-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${rows.length} registros exportados`);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Portabilidade de Dados</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Faça o backup completo das suas atividades em formato CSV. O arquivo
+            inclui data, categoria, atividade e XP ganho.
+          </p>
+          <Button
+            onClick={exportCsv}
+            disabled={exporting || !user}
+            className="bg-[#545B62] text-white hover:bg-[#545B62]/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            Exportar meus dados (Backup CSV)
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
