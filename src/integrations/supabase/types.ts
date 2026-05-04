@@ -303,6 +303,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rca_logs: {
+        Row: {
+          action_plan: string
+          created_at: string | null
+          downtime_date: string
+          id: string
+          root_cause: string | null
+          sla_percentage: number
+          user_id: string | null
+        }
+        Insert: {
+          action_plan: string
+          created_at?: string | null
+          downtime_date: string
+          id?: string
+          root_cause?: string | null
+          sla_percentage: number
+          user_id?: string | null
+        }
+        Update: {
+          action_plan?: string
+          created_at?: string | null
+          downtime_date?: string
+          id?: string
+          root_cause?: string | null
+          sla_percentage?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       strategies: {
         Row: {
           created_at: string | null
@@ -428,6 +458,14 @@ export type Database = {
           data_log: string | null
           total_atividades: number | null
           total_xp_dia: number | null
+        }
+        Relationships: []
+      }
+      monthly_ha_summary: {
+        Row: {
+          avg_uptime_month: number | null
+          month_log: string | null
+          user_id: string | null
         }
         Relationships: []
       }
