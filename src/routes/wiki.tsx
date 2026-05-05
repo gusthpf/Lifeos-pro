@@ -20,7 +20,7 @@ export const Route = createFileRoute("/wiki")({
         content:
           "Sua base de conhecimento técnica: soluções salvas pelo Nexus, pesquisáveis por título, conteúdo e tags.",
       },
-      { property: "og:title", content: "Wiki Técnica — AI Life Coach" },
+      { property: "og:title", content: "Wiki Técnica — Life OS - Pro Manager" },
       {
         property: "og:description",
         content:
