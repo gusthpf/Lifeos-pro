@@ -2034,7 +2034,7 @@ function DojoTab() {
                     {habit.title}
                   </CardTitle>
                   <Badge variant="secondary" className="shrink-0 gap-1">
-                    <Zap className="h-3 w-3" /> {habit.xp_reward ?? 30}
+                    <Zap className="h-3 w-3" /> 30
                   </Badge>
                 </div>
                 {habit.category && (
