@@ -4050,7 +4050,7 @@ function SettingsTab() {
 
   function csvEscape(v: unknown): string {
     const s = v == null ? "" : String(v);
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    if (/[";\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   }
 
