@@ -12,8 +12,8 @@ import { Loader2, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "LifeOS - Pro Manager" },
-      { name: "description", content: "Entre ou crie sua conta no AI Life Coach." },
+      { title: "Life OS - Pro Manager" },
+      { name: "description", content: "Console de monitoramento de performance pessoal com estética e lógica de NOC." },
     ],
   }),
   component: AuthPage,
