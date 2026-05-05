@@ -92,7 +92,7 @@ function AuthPage() {
           >
             <Sparkles className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">AI Life Coach</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Life OS - Pro Manager</h1>
         </div>
 
         <Card>
