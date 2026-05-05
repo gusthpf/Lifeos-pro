@@ -1968,7 +1968,7 @@ function DojoTab() {
       return;
     }
     setCompletedToday((s) => new Set(s).add(habit.id));
-    toast.success(`+${habit.xp_reward ?? 10} XP`, {
+    toast.success(`+${habit.xp_reward ?? 30} XP`, {
       description: `"${habit.title}" concluído!`,
     });
   }
