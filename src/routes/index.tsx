@@ -4050,7 +4050,7 @@ function SettingsTab() {
 
   function csvEscape(v: unknown): string {
     const s = v == null ? "" : String(v);
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    if (/[";\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   }
 
@@ -4058,38 +4058,43 @@ function SettingsTab() {
     if (!user) return;
     setExporting(true);
     const { data, error } = await supabase
-      .from("daily_activities" as any)
-      .select("created_at,category,description,xp_reward")
+      .from("vw_export_csv" as any)
+      .select("data,categoria,atividade,xp_ganho")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("data", { ascending: false });
     setExporting(false);
     if (error) {
       toast.error("Não foi possível exportar agora. Tente novamente mais tarde.");
       return;
     }
     const rows = ((data ?? []) as unknown) as Array<{
-      created_at: string;
-      category: string | null;
-      description: string;
-      xp_reward: number;
+      data: string;
+      categoria: string | null;
+      atividade: string | null;
+      xp_ganho: number | null;
     }>;
-    const header = ["Data de Criação", "Categoria", "Atividade", "XP Ganho"];
-    const lines = [header.join(",")];
+    const fmt = (iso: string) => {
+      const d = new Date(iso);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const header = ["Data", "Categoria", "Atividade", "XP Ganho"];
+    const lines = [header.join(";")];
     rows.forEach((r) => {
       lines.push(
         [
-          csvEscape(new Date(r.created_at).toLocaleString("pt-BR")),
-          csvEscape(r.category ?? ""),
-          csvEscape(r.description),
-          csvEscape(r.xp_reward),
-        ].join(","),
+          csvEscape(fmt(r.data)),
+          csvEscape(r.categoria ?? ""),
+          csvEscape(r.atividade ?? ""),
+          csvEscape(r.xp_ganho ?? 0),
+        ].join(";"),
       );
     });
     const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `lifeos-backup-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `backup_lifeos_manager.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

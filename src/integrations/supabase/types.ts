@@ -469,6 +469,16 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_export_csv: {
+        Row: {
+          atividade: string | null
+          categoria: string | null
+          data: string | null
+          user_id: string | null
+          xp_ganho: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       adicionar_xp: { Args: { xp_ganho: number }; Returns: undefined }
