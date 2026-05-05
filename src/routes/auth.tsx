@@ -37,11 +37,26 @@ function AuthPage() {
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       console.error("signIn error", error);
-      toast.error("Falha ao entrar", { description: "Verifique suas credenciais." });
+      const isUnconfirmed = /confirm/i.test(error.message) || /not confirmed/i.test(error.message);
+      if (isUnconfirmed) {
+        toast.error("Acesso ainda não ativado", {
+          description: "Confirme o link enviado ao seu e-mail para ativar seu acesso operacional.",
+          className: "border-emerald-500/60",
+        });
+      } else {
+        toast.error("Falha ao entrar", { description: "Verifique suas credenciais." });
+      }
+      return;
+    }
+    if (!data.user?.email_confirmed_at && !data.user?.confirmed_at) {
+      await supabase.auth.signOut();
+      toast.error("E-mail não confirmado", {
+        description: "Verifique sua caixa de entrada e ative seu acesso antes de prosseguir.",
+      });
       return;
     }
     toast.success("Login realizado!");
@@ -72,13 +87,18 @@ function AuthPage() {
         .upsert({ id: data.user.id, full_name: fullName }, { onConflict: "id" });
     }
     setLoading(false);
+    toast.success("Acesso solicitado!", {
+      description:
+        "Enviamos um link de confirmação para o seu e-mail. Verifique-o para ativar seu acesso operacional.",
+      duration: 8000,
+      className:
+        "!bg-zinc-950 !text-emerald-50 !border-2 !border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)]",
+    });
     if (data.session) {
-      toast.success("Conta criada!");
-      navigate({ to: "/" });
-    } else {
-      toast.success("Confirme seu email para entrar.");
-      setTab("signin");
+      // Force confirmation flow: do not enter dashboard until email is confirmed
+      await supabase.auth.signOut();
     }
+    setTab("signin");
   }
 
   return (
