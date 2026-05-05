@@ -1775,7 +1775,7 @@ function LifeCoachApp() {
               <Sparkles className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">AI Life Coach</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Life OS - Pro Manager</h1>
               <p className="text-sm text-muted-foreground">Treine. Planeje. Reflita. Evolua.</p>
             </div>
           </div>
