@@ -68,3 +68,8 @@ O sistema de backup e exportação utiliza a view `vw_export_csv` para normaliza
 1. **Clone o repositório:**
    ```bash
    git clone [https://github.com/seu-usuario/life-os-pro-manager.git](https://github.com/seu-usuario/life-os-pro-manager.git)
+
+👨‍💻 Autor
+Gustavo Henrique 
+Analista de Dados
+Sinta-se à vontade para se conectar comigo para discutir arquitetura de sistemas ou produtividade gamificada!
