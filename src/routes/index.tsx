@@ -2365,6 +2365,38 @@ function TodoTab() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [editing, setEditing] = useState<TodoItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPriority, setEditPriority] = useState<Priority>("Média");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function openEdit(item: TodoItem) {
+    setEditing(item);
+    setEditTitle(item.title);
+    setEditPriority((item.priority ?? "Média") as Priority);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const t = editTitle.trim();
+    if (!t) return;
+    setSavingEdit(true);
+    const { data, error } = await supabase
+      .from("todo_list")
+      .update({ title: t, priority: editPriority })
+      .eq("id", editing.id)
+      .select("id,title,priority,is_completed,created_at,completed_at")
+      .single();
+    setSavingEdit(false);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setItems((curr) => (curr ?? []).map((x) => (x.id === editing.id ? (data as TodoItem) : x)));
+    setEditing(null);
+    toast.success("Tarefa atualizada");
+  }
 
   async function load() {
     const { data, error } = await supabase
@@ -2535,6 +2567,7 @@ function TodoTab() {
                       busy={busy === item.id}
                       onToggle={toggleTodo}
                       onDelete={deleteTodo}
+                      onEdit={openEdit}
                     />
                   ))}
                 </div>
@@ -2558,6 +2591,7 @@ function TodoTab() {
                     busy={busy === item.id}
                     onToggle={toggleTodo}
                     onDelete={deleteTodo}
+                    onEdit={openEdit}
                   />
                 ))}
               </div>
@@ -2631,6 +2665,46 @@ function TodoTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" /> Editar tarefa
+            </DialogTitle>
+            <DialogDescription>Atualize o título e a prioridade da tarefa.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-3">
+            <Input
+              placeholder="Título da tarefa"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+            />
+            <Select value={editPriority} onValueChange={(v) => setEditPriority(v as Priority)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_ORDER.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PRIORITY_META[p].emoji} {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingEdit || !editTitle.trim()} className="gap-2">
+                {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2640,11 +2714,13 @@ function TodoCard({
   busy,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   item: TodoItem;
   busy: boolean;
   onToggle: (i: TodoItem) => void;
   onDelete: (i: TodoItem) => void;
+  onEdit: (i: TodoItem) => void;
 }) {
   const p = (item.priority ?? "Média") as Priority;
   const meta = PRIORITY_META[p];
@@ -2698,16 +2774,30 @@ function TodoCard({
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-          onClick={() => onDelete(item)}
-          disabled={busy}
-          aria-label="Excluir tarefa"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            onClick={() => onEdit(item)}
+            disabled={busy}
+            aria-label="Editar tarefa"
+            title="Editar tarefa"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(item)}
+            disabled={busy}
+            aria-label="Excluir tarefa"
+            title="Excluir tarefa"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
