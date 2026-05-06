@@ -3081,11 +3081,11 @@ function MetricsTab() {
       for (const l of logs ?? []) {
         const notes = ((l as any).notes ?? "") as string;
         let cat: string;
-        if ((l as any).habit_id) {
+        // Logs do NOC ("Registrar treino") contêm "Treino:" nas notas — rotular como "treino NOC"
+        if (/\btreino\b/i.test(notes) || /\bmuscul/i.test(notes)) {
+          cat = "treino NOC";
+        } else if ((l as any).habit_id) {
           cat = habitCat[(l as any).habit_id] ?? "sem categoria";
-        } else if (/^\s*treino\b/i.test(notes) || /\btreino\b/i.test(notes)) {
-          // Logs avulsos registrados pelo NOC ("Registrar treino") não têm habit_id.
-          cat = "treino";
         } else {
           cat = "sem categoria";
         }
