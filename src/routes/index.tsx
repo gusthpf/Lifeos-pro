@@ -2365,6 +2365,38 @@ function TodoTab() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [editing, setEditing] = useState<TodoItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPriority, setEditPriority] = useState<Priority>("Média");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function openEdit(item: TodoItem) {
+    setEditing(item);
+    setEditTitle(item.title);
+    setEditPriority((item.priority ?? "Média") as Priority);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const t = editTitle.trim();
+    if (!t) return;
+    setSavingEdit(true);
+    const { data, error } = await supabase
+      .from("todo_list")
+      .update({ title: t, priority: editPriority })
+      .eq("id", editing.id)
+      .select("id,title,priority,is_completed,created_at,completed_at")
+      .single();
+    setSavingEdit(false);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setItems((curr) => (curr ?? []).map((x) => (x.id === editing.id ? (data as TodoItem) : x)));
+    setEditing(null);
+    toast.success("Tarefa atualizada");
+  }
 
   async function load() {
     const { data, error } = await supabase
