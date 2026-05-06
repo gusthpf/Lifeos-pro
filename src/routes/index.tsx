@@ -2567,6 +2567,7 @@ function TodoTab() {
                       busy={busy === item.id}
                       onToggle={toggleTodo}
                       onDelete={deleteTodo}
+                      onEdit={openEdit}
                     />
                   ))}
                 </div>
