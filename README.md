@@ -9,9 +9,8 @@ O **Life OS - Pro Manager** é um ecossistema de gestão de produtividade que tr
 
 ## 🖥️ Visual Preview
 
-*(Dica: Adicione aqui um GIF ou print da sua Dashboard principal)*
-![Dashboard Life OS](<img width="1245" height="905" alt="image" src="https://github.com/user-attachments/assets/05106dec-47c6-4990-8d84-e31d94ae3bd9" />
-)
+
+![Dashboard Life OS(<img width="1247" height="906" alt="image" src="https://github.com/user-attachments/assets/64509e92-62d2-490f-a19c-f204aeaf6e19" />)
 
 ---
 
