@@ -2672,11 +2672,13 @@ function TodoCard({
   busy,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   item: TodoItem;
   busy: boolean;
   onToggle: (i: TodoItem) => void;
   onDelete: (i: TodoItem) => void;
+  onEdit: (i: TodoItem) => void;
 }) {
   const p = (item.priority ?? "Média") as Priority;
   const meta = PRIORITY_META[p];
@@ -2730,16 +2732,30 @@ function TodoCard({
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-          onClick={() => onDelete(item)}
-          disabled={busy}
-          aria-label="Excluir tarefa"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            onClick={() => onEdit(item)}
+            disabled={busy}
+            aria-label="Editar tarefa"
+            title="Editar tarefa"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(item)}
+            disabled={busy}
+            aria-label="Excluir tarefa"
+            title="Excluir tarefa"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
