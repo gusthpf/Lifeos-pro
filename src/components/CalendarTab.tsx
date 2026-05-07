@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CalendarDays, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
