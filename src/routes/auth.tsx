@@ -26,6 +26,9 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"signin" | "signup">("signin");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   // If already logged in, bounce to home
   useEffect(() => {
@@ -33,6 +36,32 @@ function AuthPage() {
       if (session) navigate({ to: "/" });
     });
   }, [navigate]);
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    const target = (resetEmail || email).trim();
+    if (!target) {
+      toast.error("Informe seu e-mail", { description: "Digite o e-mail cadastrado para receber o link." });
+      return;
+    }
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetting(false);
+    if (error) {
+      console.error("resetPassword error", error);
+      toast.error("Falha ao enviar link", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success("Link enviado!", {
+      description: "Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.",
+      duration: 8000,
+      className:
+        "!bg-zinc-950 !text-emerald-50 !border-2 !border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)]",
+    });
+    setResetOpen(false);
+  }
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
