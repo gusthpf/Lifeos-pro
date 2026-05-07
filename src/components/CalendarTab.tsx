@@ -40,6 +40,7 @@ type Appointment = {
   description: string | null;
   start_time: string;
   end_time: string | null;
+  completed_at: string | null;
 };
 
 type CalEvent = {
@@ -48,6 +49,7 @@ type CalEvent = {
   description: string | null;
   start: Date;
   end: Date;
+  completed: boolean;
 };
 
 function toLocalInput(d: Date): string {
