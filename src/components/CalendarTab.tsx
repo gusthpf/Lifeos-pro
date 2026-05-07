@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CalendarDays, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -40,6 +40,7 @@ type Appointment = {
   description: string | null;
   start_time: string;
   end_time: string | null;
+  completed_at: string | null;
 };
 
 type CalEvent = {
@@ -48,6 +49,7 @@ type CalEvent = {
   description: string | null;
   start: Date;
   end: Date;
+  completed: boolean;
 };
 
 function toLocalInput(d: Date): string {
@@ -75,16 +77,23 @@ export function CalendarTab() {
   async function load() {
     const { data, error } = await supabase
       .from("appointments")
-      .select("id,title,description,start_time,end_time")
+      .select("id,title,description,start_time,end_time,completed_at" as any)
       .order("start_time", { ascending: true });
     if (error) {
       toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
       return;
     }
-    const parsed: CalEvent[] = (data ?? []).map((a: Appointment) => {
+    const parsed: CalEvent[] = ((data ?? []) as any as Appointment[]).map((a) => {
       const start = new Date(a.start_time);
       const end = a.end_time ? new Date(a.end_time) : new Date(start.getTime() + 60 * 60 * 1000);
-      return { id: a.id, title: a.title, description: a.description, start, end };
+      return {
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        start,
+        end,
+        completed: !!a.completed_at,
+      };
     });
     setEvents(parsed);
   }
@@ -165,6 +174,22 @@ export function CalendarTab() {
     load();
   }
 
+  async function toggleComplete() {
+    if (!editing) return;
+    const newCompleted = !editing.completed;
+    const { error } = await supabase
+      .from("appointments")
+      .update({ completed_at: newCompleted ? new Date().toISOString() : null } as any)
+      .eq("id", editing.id);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success(newCompleted ? "Compromisso concluído" : "Compromisso reaberto");
+    setOpen(false);
+    load();
+  }
+
   const messages = useMemo(
     () => ({
       today: "Hoje",
@@ -211,6 +236,18 @@ export function CalendarTab() {
             endAccessor="end"
             onSelectSlot={(slot) => openCreate(slot.start as Date, slot.end as Date)}
             onSelectEvent={(ev) => openEdit(ev as CalEvent)}
+            eventPropGetter={(ev) =>
+              (ev as CalEvent).completed
+                ? {
+                    style: {
+                      backgroundColor: "hsl(var(--muted))",
+                      color: "hsl(var(--muted-foreground))",
+                      textDecoration: "line-through",
+                      opacity: 0.7,
+                    },
+                  }
+                : {}
+            }
             style={{ height: "100%" }}
           />
         </div>
@@ -282,10 +319,30 @@ export function CalendarTab() {
               ) : (
                 <span />
               )}
-              <Button type="submit" disabled={saving} className="gap-1.5">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editing ? "Salvar" : "Criar"}
-              </Button>
+              <div className="flex gap-2">
+                {editing && (
+                  <Button
+                    type="button"
+                    variant={editing.completed ? "outline" : "secondary"}
+                    onClick={toggleComplete}
+                    className="gap-1.5"
+                  >
+                    {editing.completed ? (
+                      <>
+                        <RotateCcw className="h-4 w-4" /> Reabrir
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" /> Concluído
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button type="submit" disabled={saving} className="gap-1.5">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {editing ? "Salvar" : "Criar"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -309,7 +366,8 @@ export function useTodayAppointmentsAlert() {
       const dayEnd = fromZonedTime(`${yyyy}-${mm}-${dd}T23:59`, SALVADOR_TZ);
       const { data } = await supabase
         .from("appointments")
-        .select("id,title,start_time")
+        .select("id,title,start_time,completed_at" as any)
+        .is("completed_at", null)
         .gte("start_time", dayStart.toISOString())
         .lte("start_time", dayEnd.toISOString())
         .order("start_time", { ascending: true });
