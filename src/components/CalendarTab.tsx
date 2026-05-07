@@ -174,7 +174,21 @@ export function CalendarTab() {
     load();
   }
 
-  const messages = useMemo(
+  async function toggleComplete() {
+    if (!editing) return;
+    const newCompleted = !editing.completed;
+    const { error } = await supabase
+      .from("appointments")
+      .update({ completed_at: newCompleted ? new Date().toISOString() : null } as any)
+      .eq("id", editing.id);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success(newCompleted ? "Compromisso concluído" : "Compromisso reaberto");
+    setOpen(false);
+    load();
+  }
     () => ({
       today: "Hoje",
       previous: "Anterior",
