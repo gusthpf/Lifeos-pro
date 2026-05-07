@@ -77,16 +77,23 @@ export function CalendarTab() {
   async function load() {
     const { data, error } = await supabase
       .from("appointments")
-      .select("id,title,description,start_time,end_time")
+      .select("id,title,description,start_time,end_time,completed_at" as any)
       .order("start_time", { ascending: true });
     if (error) {
       toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
       return;
     }
-    const parsed: CalEvent[] = (data ?? []).map((a: Appointment) => {
+    const parsed: CalEvent[] = ((data ?? []) as any as Appointment[]).map((a) => {
       const start = new Date(a.start_time);
       const end = a.end_time ? new Date(a.end_time) : new Date(start.getTime() + 60 * 60 * 1000);
-      return { id: a.id, title: a.title, description: a.description, start, end };
+      return {
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        start,
+        end,
+        completed: !!a.completed_at,
+      };
     });
     setEvents(parsed);
   }
