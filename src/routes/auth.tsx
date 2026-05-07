@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -26,6 +27,9 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"signin" | "signup">("signin");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   // If already logged in, bounce to home
   useEffect(() => {
@@ -33,6 +37,32 @@ function AuthPage() {
       if (session) navigate({ to: "/" });
     });
   }, [navigate]);
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    const target = (resetEmail || email).trim();
+    if (!target) {
+      toast.error("Informe seu e-mail", { description: "Digite o e-mail cadastrado para receber o link." });
+      return;
+    }
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetting(false);
+    if (error) {
+      console.error("resetPassword error", error);
+      toast.error("Falha ao enviar link", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success("Link enviado!", {
+      description: "Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.",
+      duration: 8000,
+      className:
+        "!bg-zinc-950 !text-emerald-50 !border-2 !border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)]",
+    });
+    setResetOpen(false);
+  }
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -155,6 +185,16 @@ function AuthPage() {
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Entrar
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetEmail(email);
+                      setResetOpen(true);
+                    }}
+                    className="block w-full text-center text-xs text-muted-foreground underline-offset-4 hover:text-emerald-400 hover:underline"
+                  >
+                    Esqueci minha senha
+                  </button>
                 </form>
               </TabsContent>
 
@@ -206,6 +246,37 @@ function AuthPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="sm:max-w-md border-emerald-500/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-emerald-400" /> Recuperar acesso
+            </DialogTitle>
+            <DialogDescription>
+              Informe o e-mail cadastrado e enviaremos um link para redefinir sua senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">E-mail</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="seu@email.com"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={resetting}>
+              {resetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enviar link de recuperação
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
