@@ -319,10 +319,30 @@ export function CalendarTab() {
               ) : (
                 <span />
               )}
-              <Button type="submit" disabled={saving} className="gap-1.5">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editing ? "Salvar" : "Criar"}
-              </Button>
+              <div className="flex gap-2">
+                {editing && (
+                  <Button
+                    type="button"
+                    variant={editing.completed ? "outline" : "secondary"}
+                    onClick={toggleComplete}
+                    className="gap-1.5"
+                  >
+                    {editing.completed ? (
+                      <>
+                        <RotateCcw className="h-4 w-4" /> Reabrir
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" /> Concluído
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button type="submit" disabled={saving} className="gap-1.5">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {editing ? "Salvar" : "Criar"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
