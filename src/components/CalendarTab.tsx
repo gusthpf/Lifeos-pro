@@ -188,7 +188,8 @@ export function CalendarTab() {
     toast.success(newCompleted ? "Compromisso concluído" : "Compromisso reaberto");
     setOpen(false);
     load();
-  }
+
+  const messages = useMemo(
     () => ({
       today: "Hoje",
       previous: "Anterior",
