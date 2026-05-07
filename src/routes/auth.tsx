@@ -246,6 +246,37 @@ function AuthPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="sm:max-w-md border-emerald-500/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-emerald-400" /> Recuperar acesso
+            </DialogTitle>
+            <DialogDescription>
+              Informe o e-mail cadastrado e enviaremos um link para redefinir sua senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">E-mail</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="seu@email.com"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={resetting}>
+              {resetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enviar link de recuperação
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
