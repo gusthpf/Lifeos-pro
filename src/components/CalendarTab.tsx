@@ -366,7 +366,8 @@ export function useTodayAppointmentsAlert() {
       const dayEnd = fromZonedTime(`${yyyy}-${mm}-${dd}T23:59`, SALVADOR_TZ);
       const { data } = await supabase
         .from("appointments")
-        .select("id,title,start_time")
+        .select("id,title,start_time,completed_at" as any)
+        .is("completed_at", null)
         .gte("start_time", dayStart.toISOString())
         .lte("start_time", dayEnd.toISOString())
         .order("start_time", { ascending: true });
