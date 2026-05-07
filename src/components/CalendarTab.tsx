@@ -236,6 +236,18 @@ export function CalendarTab() {
             endAccessor="end"
             onSelectSlot={(slot) => openCreate(slot.start as Date, slot.end as Date)}
             onSelectEvent={(ev) => openEdit(ev as CalEvent)}
+            eventPropGetter={(ev) =>
+              (ev as CalEvent).completed
+                ? {
+                    style: {
+                      backgroundColor: "hsl(var(--muted))",
+                      color: "hsl(var(--muted-foreground))",
+                      textDecoration: "line-through",
+                      opacity: 0.7,
+                    },
+                  }
+                : {}
+            }
             style={{ height: "100%" }}
           />
         </div>
