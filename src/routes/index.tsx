@@ -60,6 +60,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon, ListFilter } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
@@ -2114,46 +2121,72 @@ function DojoTab() {
 }
 
 /* ============ ESTRATÉGIA ============ */
+type Strategy = {
+  id: string;
+  title: string;
+  description: string | null;
+  is_completed: boolean | null;
+  is_scheduled: boolean | null;
+  scheduled_date: string | null;
+  created_at: string | null;
+};
+
 function StrategyTab() {
   const { user } = AuthCtx.useAuth();
-  const [goals, setGoals] = useState<Goal[] | null>(null);
-  const [busy, setBusy] = useState<{ id: string; action: "complete" | "delete" } | null>(null);
-  const [editing, setEditing] = useState<Goal | null>(null);
+  const [items, setItems] = useState<Strategy[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>("lista");
+  const [editing, setEditing] = useState<Strategy | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editScheduled, setEditScheduled] = useState(false);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const today = useBahiaToday();
 
-  const reload = async () => {
-    const { data } = await supabase
-      .from("life_goals")
-      .select("id,objective,horizon,status,created_at")
+  async function load() {
+    const { data, error } = await supabase
+      .from("strategies")
+      .select("id,title,description,is_completed,is_scheduled,scheduled_date,created_at")
       .order("created_at", { ascending: false });
-    setGoals((data ?? []) as Goal[]);
-  };
+    if (error) {
+      toast.error("Falha ao carregar estratégias", { description: "Tente novamente mais tarde." });
+      setItems([]);
+      return;
+    }
+    setItems((data ?? []) as Strategy[]);
+  }
 
   useEffect(() => {
-    void reload();
+    void load();
   }, []);
 
-  // Realtime: react to inserts/updates/deletes on life_goals
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`strategy-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`strategies-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "life_goals", filter: `user_id=eq.${user.id}` },
+        { event: "*", schema: "public", table: "strategies", filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           if (payload.eventType === "INSERT") {
-            const row = payload.new as Goal;
-            setGoals((curr) => {
+            const row = payload.new as Strategy;
+            setItems((curr) => {
               const list = curr ?? [];
-              if (list.some((g) => g.id === row.id)) return list;
+              if (list.some((s) => s.id === row.id)) return list;
               return [row, ...list];
             });
           } else if (payload.eventType === "UPDATE") {
-            const row = payload.new as Goal;
-            setGoals((curr) => (curr ?? []).map((g) => (g.id === row.id ? { ...g, ...row } : g)));
+            const row = payload.new as Strategy;
+            setItems((curr) => (curr ?? []).map((s) => (s.id === row.id ? { ...s, ...row } : s)));
           } else if (payload.eventType === "DELETE") {
             const oldId = (payload.old as any)?.id;
-            if (oldId) setGoals((curr) => (curr ?? []).filter((g) => g.id !== oldId));
+            if (oldId) setItems((curr) => (curr ?? []).filter((s) => s.id !== oldId));
           }
         },
       )
@@ -2163,157 +2196,322 @@ function StrategyTab() {
     };
   }, [user?.id]);
 
-  async function completeGoal(g: Goal) {
-    if (g.status === "concluido") return;
-    setBusy({ id: g.id, action: "complete" });
-    const { error } = await supabase
-      .from("life_goals")
-      .update({ status: "concluido" })
-      .eq("id", g.id);
-    setBusy(null);
-    if (error) {
-      toast.error("Falha ao concluir", { description: "Tente novamente mais tarde." });
+  async function createStrategy(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Sessão expirada");
       return;
     }
-    setGoals((curr) =>
-      (curr ?? []).map((x) => (x.id === g.id ? { ...x, status: "concluido" } : x)),
-    );
-    toast.success("ESTRATÉGIA CONCLUÍDA: +50 XP", {
-      description: `"${g.objective}" finalizada.`,
+    const t = title.trim();
+    if (!t) return;
+    if (scheduled && !scheduledDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
+    setCreating(true);
+    const { error } = await supabase.from("strategies").insert({
+      user_id: user.id,
+      title: t,
+      description: description.trim() || null,
+      is_scheduled: scheduled,
+      scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
     });
+    setCreating(false);
+    if (error) {
+      toast.error("Falha ao criar estratégia", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setTitle("");
+    setDescription("");
+    setScheduled(false);
+    setScheduledDate(undefined);
+    toast.success("Estratégia criada");
   }
 
-  async function deleteGoal(g: Goal) {
-    if (!confirm(`Excluir a meta "${g.objective}"? Esta ação não pode ser desfeita.`)) return;
-    setBusy({ id: g.id, action: "delete" });
-    const { error } = await supabase.from("life_goals").delete().eq("id", g.id);
+  async function toggleStrategy(s: Strategy) {
+    setBusy(s.id);
+    const { error } = await supabase
+      .from("strategies")
+      .update({ is_completed: !s.is_completed })
+      .eq("id", s.id);
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    if (!s.is_completed) toast.success("ESTRATÉGIA CONCLUÍDA: +50 XP");
+  }
+
+  async function deleteStrategy(s: Strategy) {
+    if (!confirm(`Excluir "${s.title}"?`)) return;
+    setBusy(s.id);
+    const { error } = await supabase.from("strategies").delete().eq("id", s.id);
     setBusy(null);
     if (error) {
       toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
-    setGoals((curr) => (curr ?? []).filter((x) => x.id !== g.id));
-    toast.success("Meta removida");
+    toast.success("Estratégia removida");
   }
 
-  if (goals === null) return <SkeletonGrid />;
-  if (goals.length === 0)
-    return (
-      <EmptyState
-        icon={<Target className="h-8 w-8" />}
-        title="Nenhuma meta definida"
-        description="Vamos cadastrar uma meta e ver nosso progresso acontecer!"
-      />
-    );
+  function openEdit(s: Strategy) {
+    setEditing(s);
+    setEditTitle(s.title);
+    setEditDescription(s.description ?? "");
+    setEditScheduled(!!s.is_scheduled);
+    setEditDate(isoToDate(s.scheduled_date));
+  }
 
-  const statusColor: Record<string, string> = {
-    em_progresso: "var(--gradient-primary)",
-    concluido: "var(--gradient-accent)",
-    pausado: "oklch(0.5 0.03 270)",
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const t = editTitle.trim();
+    if (!t) return;
+    if (editScheduled && !editDate) {
+      toast.error("Selecione uma data");
+      return;
+    }
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("strategies")
+      .update({
+        title: t,
+        description: editDescription.trim() || null,
+        is_scheduled: editScheduled,
+        scheduled_date: editScheduled && editDate ? dateToISO(editDate) : null,
+      })
+      .eq("id", editing.id);
+    setSavingEdit(false);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setEditing(null);
+    toast.success("Estratégia atualizada");
+  }
+
+  if (items === null) return <SkeletonGrid />;
+
+  const all = items;
+  const listaItems = all.filter((i) => !i.is_scheduled);
+  const agendaItems = all.filter((i) => !!i.is_scheduled);
+  const agendaGroups = groupByAgenda(agendaItems, today);
+
+  const renderCard = (s: Strategy) => {
+    const done = !!s.is_completed;
+    const overdue = isOverdue(s, today);
+    const isBusy = busy === s.id;
+    return (
+      <Card
+        key={s.id}
+        className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
+          done ? "opacity-70" : ""
+        }`}
+        style={{
+          boxShadow: "var(--shadow-card)",
+          borderLeft: overdue ? "3px solid hsl(var(--destructive))" : undefined,
+        }}
+      >
+        <div
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: done ? "var(--gradient-accent)" : "var(--gradient-primary)" }}
+        />
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle
+              className={`text-base leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
+            >
+              {s.title}
+            </CardTitle>
+            <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
+          </div>
+          {s.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {s.is_scheduled && s.scheduled_date && (
+              <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+                <CalendarDays className="h-3 w-3" />
+                {format(isoToDate(s.scheduled_date)!, "dd/MM/yyyy", { locale: ptBR })}
+              </Badge>
+            )}
+            {overdue && (
+              <Badge className="gap-1 border-destructive/50 bg-destructive/15 text-destructive">
+                <AlertTriangle className="h-3 w-3" /> Atrasado
+              </Badge>
+            )}
+            <Badge variant="secondary">{done ? "Concluída" : "Em progresso"}</Badge>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              variant={done ? "secondary" : "default"}
+              onClick={() => toggleStrategy(s)}
+              disabled={isBusy}
+              className="flex-1 gap-2"
+            >
+              {isBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : done ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              {done ? "Reabrir" : "Concluir"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => openEdit(s)} className="gap-2">
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => deleteStrategy(s)}
+              disabled={isBusy}
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
-    <>
-      <div className="grid gap-4 md:grid-cols-2">
-        {goals.map((g) => {
-          const done = g.status === "concluido";
-          const isCompleting = busy?.id === g.id && busy.action === "complete";
-          const isDeleting = busy?.id === g.id && busy.action === "delete";
-          return (
-            <Card
-              key={g.id}
-              className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
-                done ? "opacity-70" : ""
-              }`}
-              style={{ boxShadow: "var(--shadow-card)" }}
-            >
-              <div
-                className="absolute inset-x-0 top-0 h-1"
-                style={{
-                  background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso,
-                }}
-              />
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <CardTitle
-                    className={`text-lg leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
-                  >
-                    {g.objective}
-                  </CardTitle>
-                  <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {g.horizon && (
-                    <Badge variant="outline" className="border-accent/40 text-accent">
-                      {g.horizon}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary">
-                    {(g.status ?? "em_progresso").replace("_", " ")}
-                  </Badge>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant={done ? "secondary" : "default"}
-                    onClick={() => completeGoal(g)}
-                    disabled={done || isCompleting}
-                    className={
-                      done
-                        ? "flex-1 gap-2 rounded-lg border-0 bg-gradient-to-r from-[#73C5EA] to-[#88CED6] text-white hover:opacity-95 disabled:opacity-100 dark:from-[#065f46] dark:to-[#0d9488] dark:text-black"
-                        : "flex-1 gap-2"
-                    }
-                  >
-                    {isCompleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : done ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    {done ? "Concluído hoje" : "Concluir"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditing(g)}
-                    aria-label={`Editar ${g.objective}`}
-                    title="Editar estratégia"
-                    className="gap-2"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => deleteGoal(g)}
-                    disabled={isDeleting}
-                    className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Excluir ${g.objective}`}
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <div className="space-y-6">
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Target className="h-5 w-5 text-primary" /> Nova estratégia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={createStrategy} className="space-y-3">
+            <Input
+              placeholder="Título da estratégia"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <Textarea
+              placeholder="Descrição (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+            <ScheduleField
+              scheduled={scheduled}
+              setScheduled={setScheduled}
+              date={scheduledDate}
+              setDate={setScheduledDate}
+              idPrefix="strat-new"
+            />
+            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between">
+        <ViewModeSelector value={view} onChange={setView} />
+        <span className="text-xs text-muted-foreground">
+          {view === "lista" ? `${listaItems.length} itens` : `${agendaItems.length} agendadas`}
+        </span>
       </div>
-      <EditGoalModal
-        goal={editing}
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        onSaved={(updated) =>
-          setGoals((curr) => (curr ?? []).map((g) => (g.id === updated.id ? updated : g)))
-        }
-      />
-    </>
+
+      {view === "lista" &&
+        (listaItems.length === 0 ? (
+          <EmptyState
+            icon={<Target className="h-8 w-8" />}
+            title="Nenhuma estratégia na lista"
+            description="Crie uma estratégia acima ou veja a aba Agenda."
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">{listaItems.map(renderCard)}</div>
+        ))}
+
+      {view === "agenda" &&
+        (agendaGroups.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-8 w-8" />}
+            title="Nenhuma estratégia agendada"
+            description="Ative 'Agendar Missão?' ao criar uma estratégia."
+          />
+        ) : (
+          <div className="space-y-5">
+            {agendaGroups.map((g) => (
+              <section key={g.key} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
+                      g.key === "atrasado"
+                        ? "border border-destructive/40 bg-destructive/10 text-destructive"
+                        : "border border-primary/30 bg-primary/10 text-primary",
+                    )}
+                  >
+                    {g.key === "atrasado" ? (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : (
+                      <CalendarDays className="h-3.5 w-3.5" />
+                    )}
+                    {g.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{g.items.length}</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">{g.items.map(renderCard)}</div>
+              </section>
+            ))}
+          </div>
+        ))}
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" /> Editar estratégia
+            </DialogTitle>
+            <DialogDescription>Atualize título, descrição e agendamento.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-3">
+            <Input
+              placeholder="Título"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+            />
+            <Textarea
+              placeholder="Descrição"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={2}
+            />
+            <ScheduleField
+              scheduled={editScheduled}
+              setScheduled={setEditScheduled}
+              date={editDate}
+              setDate={setEditDate}
+              idPrefix="strat-edit"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingEdit || !editTitle.trim()} className="gap-2">
+                {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -2326,6 +2524,8 @@ type TodoItem = {
   is_completed: boolean | null;
   created_at: string | null;
   completed_at: string | null;
+  is_scheduled: boolean | null;
+  scheduled_date: string | null;
 };
 
 const PRIORITY_META: Record<
@@ -2357,6 +2557,157 @@ const PRIORITY_META: Record<
 
 const PRIORITY_ORDER: Priority[] = ["Alta", "Média", "Baixa"];
 
+/* ============ AGENDA HELPERS (shared between Todo & Strategy) ============ */
+type ViewMode = "lista" | "agenda";
+
+function ViewModeSelector({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const opts: { v: ViewMode; label: string; icon: React.ReactNode }[] = [
+    { v: "lista", label: "Lista Geral", icon: <ListFilter className="h-3.5 w-3.5" /> },
+    { v: "agenda", label: "Agenda", icon: <CalendarDays className="h-3.5 w-3.5" /> },
+  ];
+  return (
+    <div
+      role="tablist"
+      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card/60 p-1 backdrop-blur"
+    >
+      {opts.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            role="tab"
+            aria-selected={active}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
+              active
+                ? "bg-primary text-primary-foreground shadow"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+            )}
+          >
+            {o.icon}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type Schedulable = { is_scheduled: boolean | null; scheduled_date: string | null };
+
+function groupByAgenda<T extends Schedulable>(items: T[], todayISO: string) {
+  const tomorrowISO = getNextDateISO(todayISO);
+  const groups: { key: "atrasado" | "hoje" | "amanha" | "proximos"; label: string; items: T[] }[] =
+    [
+      { key: "atrasado", label: "Atrasado", items: [] },
+      { key: "hoje", label: "Hoje", items: [] },
+      { key: "amanha", label: "Amanhã", items: [] },
+      { key: "proximos", label: "Próximos Dias", items: [] },
+    ];
+  for (const item of items) {
+    if (!item.scheduled_date) continue;
+    const d = item.scheduled_date;
+    const isCompleted = (item as any).is_completed === true;
+    if (d < todayISO && !isCompleted) groups[0].items.push(item);
+    else if (d === todayISO) groups[1].items.push(item);
+    else if (d === tomorrowISO) groups[2].items.push(item);
+    else if (d > tomorrowISO) groups[3].items.push(item);
+    else if (d < todayISO && isCompleted) groups[3].items.push(item);
+  }
+  for (const g of groups) {
+    g.items.sort((a: any, b: any) =>
+      (a.scheduled_date ?? "").localeCompare(b.scheduled_date ?? ""),
+    );
+  }
+  return groups.filter((g) => g.items.length > 0);
+}
+
+function ScheduleField({
+  scheduled,
+  setScheduled,
+  date,
+  setDate,
+  idPrefix,
+}: {
+  scheduled: boolean;
+  setScheduled: (v: boolean) => void;
+  date: Date | undefined;
+  setDate: (d: Date | undefined) => void;
+  idPrefix: string;
+}) {
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={`${idPrefix}-sched`} className="flex items-center gap-2 text-sm">
+          <CalendarDays className="h-4 w-4 text-primary" />
+          Agendar Missão?
+        </Label>
+        <Switch
+          id={`${idPrefix}-sched`}
+          checked={scheduled}
+          onCheckedChange={(v) => {
+            setScheduled(v);
+            if (!v) setDate(undefined);
+          }}
+        />
+      </div>
+      {scheduled && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !date && "text-muted-foreground",
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, "PPP", { locale: ptBR }) : "Selecione uma data"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              initialFocus
+              locale={ptBR}
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+function dateToISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isoToDate(iso: string | null): Date | undefined {
+  if (!iso) return undefined;
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function isOverdue(item: Schedulable & { is_completed?: boolean | null }, todayISO: string) {
+  return !!item.scheduled_date && item.scheduled_date < todayISO && !item.is_completed;
+}
+
+/* ============ TODO TAB ============ */
 function TodoTab() {
   const { user } = AuthCtx.useAuth();
   const [items, setItems] = useState<TodoItem[] | null>(null);
@@ -2368,12 +2719,20 @@ function TodoTab() {
   const [editing, setEditing] = useState<TodoItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editPriority, setEditPriority] = useState<Priority>("Média");
+  const [editScheduled, setEditScheduled] = useState(false);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [view, setView] = useState<ViewMode>("lista");
+  const today = useBahiaToday();
 
   function openEdit(item: TodoItem) {
     setEditing(item);
     setEditTitle(item.title);
     setEditPriority((item.priority ?? "Média") as Priority);
+    setEditScheduled(!!item.is_scheduled);
+    setEditDate(isoToDate(item.scheduled_date));
   }
 
   async function saveEdit(e: React.FormEvent) {
@@ -2381,12 +2740,21 @@ function TodoTab() {
     if (!editing) return;
     const t = editTitle.trim();
     if (!t) return;
+    if (editScheduled && !editDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
     setSavingEdit(true);
     const { data, error } = await supabase
       .from("todo_list")
-      .update({ title: t, priority: editPriority })
+      .update({
+        title: t,
+        priority: editPriority,
+        is_scheduled: editScheduled,
+        scheduled_date: editScheduled && editDate ? dateToISO(editDate) : null,
+      })
       .eq("id", editing.id)
-      .select("id,title,priority,is_completed,created_at,completed_at")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
       .single();
     setSavingEdit(false);
     if (error) {
@@ -2401,7 +2769,7 @@ function TodoTab() {
   async function load() {
     const { data, error } = await supabase
       .from("todo_list")
-      .select("id,title,priority,is_completed,created_at,completed_at")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Falha ao carregar tarefas", { description: "Tente novamente mais tarde." });
@@ -2423,11 +2791,21 @@ function TodoTab() {
     }
     const t = title.trim();
     if (!t) return;
+    if (scheduled && !scheduledDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
     setCreating(true);
     const { data, error } = await supabase
       .from("todo_list")
-      .insert({ user_id: user.id, title: t, priority })
-      .select("id,title,priority,is_completed,created_at,completed_at")
+      .insert({
+        user_id: user.id,
+        title: t,
+        priority,
+        is_scheduled: scheduled,
+        scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
+      })
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
       .single();
     setCreating(false);
     if (error) {
@@ -2436,6 +2814,8 @@ function TodoTab() {
     }
     setItems((curr) => [data as TodoItem, ...(curr ?? [])]);
     setTitle("");
+    setScheduled(false);
+    setScheduledDate(undefined);
     toast.success("Tarefa adicionada");
   }
 
@@ -2446,7 +2826,7 @@ function TodoTab() {
       .from("todo_list")
       .update({ is_completed: next })
       .eq("id", item.id)
-      .select("id,title,priority,is_completed,created_at,completed_at")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
       .single();
     setBusy(null);
     if (error) {
@@ -2472,11 +2852,15 @@ function TodoTab() {
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
 
-  const pending = (items ?? []).filter((i) => !i.is_completed);
-  const recentlyCompleted = (items ?? []).filter(
+  const all = items ?? [];
+  const listaItems = all.filter((i) => !i.is_scheduled);
+  const agendaItems = all.filter((i) => !!i.is_scheduled);
+
+  const pending = listaItems.filter((i) => !i.is_completed);
+  const recentlyCompleted = listaItems.filter(
     (i) => i.is_completed && i.completed_at && now - new Date(i.completed_at).getTime() <= DAY_MS,
   );
-  const archived = (items ?? []).filter(
+  const archived = all.filter(
     (i) => i.is_completed && (!i.completed_at || now - new Date(i.completed_at).getTime() > DAY_MS),
   );
 
@@ -2486,6 +2870,8 @@ function TodoTab() {
       .filter((i) => (i.priority ?? "Média") === p)
       .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")),
   })).filter((g) => g.items.length > 0);
+
+  const agendaGroups = groupByAgenda(agendaItems, today);
 
   if (items === null) return <SkeletonGrid />;
 
@@ -2502,25 +2888,34 @@ function TodoTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={createTodo} className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              placeholder="O que precisa ser feito?"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="flex-1"
+          <form onSubmit={createTodo} className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                placeholder="O que precisa ser feito?"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="flex-1"
+              />
+              <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITY_ORDER.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PRIORITY_META[p].emoji} {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <ScheduleField
+              scheduled={scheduled}
+              setScheduled={setScheduled}
+              date={scheduledDate}
+              setDate={setScheduledDate}
+              idPrefix="todo-new"
             />
-            <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITY_ORDER.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {PRIORITY_META[p].emoji} {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
               {creating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -2533,34 +2928,70 @@ function TodoTab() {
         </CardContent>
       </Card>
 
-      {/* Pending grouped */}
-      {groupedPending.length === 0 && recentlyCompleted.length === 0 ? (
-        <EmptyState
-          icon={<ListTodo className="h-8 w-8" />}
-          title="Sem tarefas pendentes"
-          description="Adicione uma tarefa acima para começar."
-        />
-      ) : (
-        <div className="space-y-5">
-          {groupedPending.map((group) => {
-            const meta = PRIORITY_META[group.priority];
-            return (
-              <section key={group.priority} className="space-y-2">
+      {/* View selector */}
+      <div className="flex items-center justify-between">
+        <ViewModeSelector value={view} onChange={setView} />
+        <span className="text-xs text-muted-foreground">
+          {view === "lista"
+            ? `${pending.length} pendente${pending.length === 1 ? "" : "s"}`
+            : `${agendaItems.length} agendada${agendaItems.length === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
+      {/* LISTA GERAL */}
+      {view === "lista" &&
+        (groupedPending.length === 0 && recentlyCompleted.length === 0 ? (
+          <EmptyState
+            icon={<ListTodo className="h-8 w-8" />}
+            title="Sem tarefas pendentes"
+            description="Adicione uma tarefa acima para começar."
+          />
+        ) : (
+          <div className="space-y-5">
+            {groupedPending.map((group) => {
+              const meta = PRIORITY_META[group.priority];
+              return (
+                <section key={group.priority} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      style={{
+                        background: meta.bg,
+                        color: meta.color,
+                        border: `1px solid ${meta.ring}`,
+                      }}
+                    >
+                      <span aria-hidden>{meta.emoji}</span> Prioridade {meta.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {group.items.map((item) => (
+                      <TodoCard
+                        key={item.id}
+                        item={item}
+                        busy={busy === item.id}
+                        onToggle={toggleTodo}
+                        onDelete={deleteTodo}
+                        onEdit={openEdit}
+                        todayISO={today}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+
+            {recentlyCompleted.length > 0 && (
+              <section className="space-y-2 pt-2">
                 <div className="flex items-center gap-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    style={{
-                      background: meta.bg,
-                      color: meta.color,
-                      border: `1px solid ${meta.ring}`,
-                    }}
-                  >
-                    <span aria-hidden>{meta.emoji}</span> Prioridade {meta.label}
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Concluídas (últimas 24h)
                   </span>
-                  <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                  <span className="text-xs text-muted-foreground">{recentlyCompleted.length}</span>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {group.items.map((item) => (
+                  {recentlyCompleted.map((item) => (
                     <TodoCard
                       key={item.id}
                       item={item}
@@ -2568,37 +2999,62 @@ function TodoTab() {
                       onToggle={toggleTodo}
                       onDelete={deleteTodo}
                       onEdit={openEdit}
+                      todayISO={today}
                     />
                   ))}
                 </div>
               </section>
-            );
-          })}
+            )}
+          </div>
+        ))}
 
-          {recentlyCompleted.length > 0 && (
-            <section className="space-y-2 pt-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Concluídas (últimas 24h)
-                </span>
-                <span className="text-xs text-muted-foreground">{recentlyCompleted.length}</span>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {recentlyCompleted.map((item) => (
-                  <TodoCard
-                    key={item.id}
-                    item={item}
-                    busy={busy === item.id}
-                    onToggle={toggleTodo}
-                    onDelete={deleteTodo}
-                    onEdit={openEdit}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      )}
+      {/* AGENDA */}
+      {view === "agenda" &&
+        (agendaGroups.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-8 w-8" />}
+            title="Nenhuma missão agendada"
+            description="Ative 'Agendar Missão?' ao criar uma tarefa para vê-la aqui."
+          />
+        ) : (
+          <div className="space-y-5">
+            {agendaGroups.map((g) => (
+              <section key={g.key} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
+                      g.key === "atrasado"
+                        ? "border border-destructive/40 bg-destructive/10 text-destructive"
+                        : "border border-primary/30 bg-primary/10 text-primary",
+                    )}
+                  >
+                    {g.key === "atrasado" ? (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : (
+                      <CalendarDays className="h-3.5 w-3.5" />
+                    )}
+                    {g.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{g.items.length}</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {g.items.map((item) => (
+                    <TodoCard
+                      key={item.id}
+                      item={item}
+                      busy={busy === item.id}
+                      onToggle={toggleTodo}
+                      onDelete={deleteTodo}
+                      onEdit={openEdit}
+                      todayISO={today}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ))}
 
       {/* Archive trigger */}
       <div className="flex justify-end">
@@ -2672,7 +3128,7 @@ function TodoTab() {
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5" /> Editar tarefa
             </DialogTitle>
-            <DialogDescription>Atualize o título e a prioridade da tarefa.</DialogDescription>
+            <DialogDescription>Atualize título, prioridade e agendamento.</DialogDescription>
           </DialogHeader>
           <form onSubmit={saveEdit} className="space-y-3">
             <Input
@@ -2693,6 +3149,13 @@ function TodoTab() {
                 ))}
               </SelectContent>
             </Select>
+            <ScheduleField
+              scheduled={editScheduled}
+              setScheduled={setEditScheduled}
+              date={editDate}
+              setDate={setEditDate}
+              idPrefix="todo-edit"
+            />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
                 Cancelar
@@ -2715,16 +3178,19 @@ function TodoCard({
   onToggle,
   onDelete,
   onEdit,
+  todayISO,
 }: {
   item: TodoItem;
   busy: boolean;
   onToggle: (i: TodoItem) => void;
   onDelete: (i: TodoItem) => void;
   onEdit: (i: TodoItem) => void;
+  todayISO: string;
 }) {
   const p = (item.priority ?? "Média") as Priority;
   const meta = PRIORITY_META[p];
   const done = !!item.is_completed;
+  const overdue = isOverdue(item, todayISO);
   return (
     <Card
       className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all ${
@@ -2732,7 +3198,7 @@ function TodoCard({
       }`}
       style={{
         boxShadow: "var(--shadow-card)",
-        borderLeft: `3px solid ${meta.color}`,
+        borderLeft: `3px solid ${overdue ? "hsl(var(--destructive))" : meta.color}`,
       }}
     >
       <div
@@ -2755,13 +3221,24 @@ function TodoCard({
           >
             {item.title}
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <span
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
               style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.ring}` }}
             >
               <span aria-hidden>{meta.emoji}</span> {meta.label}
             </span>
+            {item.is_scheduled && item.scheduled_date && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                <CalendarDays className="h-3 w-3" />
+                {format(isoToDate(item.scheduled_date)!, "dd/MM", { locale: ptBR })}
+              </span>
+            )}
+            {overdue && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/50 bg-destructive/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive">
+                <AlertTriangle className="h-3 w-3" /> Atrasado
+              </span>
+            )}
             {done && item.completed_at && (
               <span className="text-[10px] text-muted-foreground">
                 {new Date(item.completed_at).toLocaleString("pt-BR", {
@@ -3580,11 +4057,7 @@ function ManagementBar() {
       <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("habit")}>
         <Plus className="h-3.5 w-3.5" /> Novo Hábito
       </Button>
-      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("goal")}>
-        <Plus className="h-3.5 w-3.5" /> Nova Estratégia
-      </Button>
       <NewHabitModal open={open === "habit"} onClose={() => setOpen(null)} />
-      <NewGoalModal open={open === "goal"} onClose={() => setOpen(null)} />
     </div>
   );
 }
