@@ -2121,46 +2121,72 @@ function DojoTab() {
 }
 
 /* ============ ESTRATÉGIA ============ */
+type Strategy = {
+  id: string;
+  title: string;
+  description: string | null;
+  is_completed: boolean | null;
+  is_scheduled: boolean | null;
+  scheduled_date: string | null;
+  created_at: string | null;
+};
+
 function StrategyTab() {
   const { user } = AuthCtx.useAuth();
-  const [goals, setGoals] = useState<Goal[] | null>(null);
-  const [busy, setBusy] = useState<{ id: string; action: "complete" | "delete" } | null>(null);
-  const [editing, setEditing] = useState<Goal | null>(null);
+  const [items, setItems] = useState<Strategy[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>("lista");
+  const [editing, setEditing] = useState<Strategy | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editScheduled, setEditScheduled] = useState(false);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const today = useBahiaToday();
 
-  const reload = async () => {
-    const { data } = await supabase
-      .from("life_goals")
-      .select("id,objective,horizon,status,created_at")
+  async function load() {
+    const { data, error } = await supabase
+      .from("strategies")
+      .select("id,title,description,is_completed,is_scheduled,scheduled_date,created_at")
       .order("created_at", { ascending: false });
-    setGoals((data ?? []) as Goal[]);
-  };
+    if (error) {
+      toast.error("Falha ao carregar estratégias", { description: "Tente novamente mais tarde." });
+      setItems([]);
+      return;
+    }
+    setItems((data ?? []) as Strategy[]);
+  }
 
   useEffect(() => {
-    void reload();
+    void load();
   }, []);
 
-  // Realtime: react to inserts/updates/deletes on life_goals
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`strategy-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`strategies-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "life_goals", filter: `user_id=eq.${user.id}` },
+        { event: "*", schema: "public", table: "strategies", filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           if (payload.eventType === "INSERT") {
-            const row = payload.new as Goal;
-            setGoals((curr) => {
+            const row = payload.new as Strategy;
+            setItems((curr) => {
               const list = curr ?? [];
-              if (list.some((g) => g.id === row.id)) return list;
+              if (list.some((s) => s.id === row.id)) return list;
               return [row, ...list];
             });
           } else if (payload.eventType === "UPDATE") {
-            const row = payload.new as Goal;
-            setGoals((curr) => (curr ?? []).map((g) => (g.id === row.id ? { ...g, ...row } : g)));
+            const row = payload.new as Strategy;
+            setItems((curr) => (curr ?? []).map((s) => (s.id === row.id ? { ...s, ...row } : s)));
           } else if (payload.eventType === "DELETE") {
             const oldId = (payload.old as any)?.id;
-            if (oldId) setGoals((curr) => (curr ?? []).filter((g) => g.id !== oldId));
+            if (oldId) setItems((curr) => (curr ?? []).filter((s) => s.id !== oldId));
           }
         },
       )
@@ -2170,157 +2196,322 @@ function StrategyTab() {
     };
   }, [user?.id]);
 
-  async function completeGoal(g: Goal) {
-    if (g.status === "concluido") return;
-    setBusy({ id: g.id, action: "complete" });
-    const { error } = await supabase
-      .from("life_goals")
-      .update({ status: "concluido" })
-      .eq("id", g.id);
-    setBusy(null);
-    if (error) {
-      toast.error("Falha ao concluir", { description: "Tente novamente mais tarde." });
+  async function createStrategy(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Sessão expirada");
       return;
     }
-    setGoals((curr) =>
-      (curr ?? []).map((x) => (x.id === g.id ? { ...x, status: "concluido" } : x)),
-    );
-    toast.success("ESTRATÉGIA CONCLUÍDA: +50 XP", {
-      description: `"${g.objective}" finalizada.`,
+    const t = title.trim();
+    if (!t) return;
+    if (scheduled && !scheduledDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
+    setCreating(true);
+    const { error } = await supabase.from("strategies").insert({
+      user_id: user.id,
+      title: t,
+      description: description.trim() || null,
+      is_scheduled: scheduled,
+      scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
     });
+    setCreating(false);
+    if (error) {
+      toast.error("Falha ao criar estratégia", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setTitle("");
+    setDescription("");
+    setScheduled(false);
+    setScheduledDate(undefined);
+    toast.success("Estratégia criada");
   }
 
-  async function deleteGoal(g: Goal) {
-    if (!confirm(`Excluir a meta "${g.objective}"? Esta ação não pode ser desfeita.`)) return;
-    setBusy({ id: g.id, action: "delete" });
-    const { error } = await supabase.from("life_goals").delete().eq("id", g.id);
+  async function toggleStrategy(s: Strategy) {
+    setBusy(s.id);
+    const { error } = await supabase
+      .from("strategies")
+      .update({ is_completed: !s.is_completed })
+      .eq("id", s.id);
+    setBusy(null);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    if (!s.is_completed) toast.success("ESTRATÉGIA CONCLUÍDA: +50 XP");
+  }
+
+  async function deleteStrategy(s: Strategy) {
+    if (!confirm(`Excluir "${s.title}"?`)) return;
+    setBusy(s.id);
+    const { error } = await supabase.from("strategies").delete().eq("id", s.id);
     setBusy(null);
     if (error) {
       toast.error("Falha ao excluir", { description: "Tente novamente mais tarde." });
       return;
     }
-    setGoals((curr) => (curr ?? []).filter((x) => x.id !== g.id));
-    toast.success("Meta removida");
+    toast.success("Estratégia removida");
   }
 
-  if (goals === null) return <SkeletonGrid />;
-  if (goals.length === 0)
-    return (
-      <EmptyState
-        icon={<Target className="h-8 w-8" />}
-        title="Nenhuma meta definida"
-        description="Vamos cadastrar uma meta e ver nosso progresso acontecer!"
-      />
-    );
+  function openEdit(s: Strategy) {
+    setEditing(s);
+    setEditTitle(s.title);
+    setEditDescription(s.description ?? "");
+    setEditScheduled(!!s.is_scheduled);
+    setEditDate(isoToDate(s.scheduled_date));
+  }
 
-  const statusColor: Record<string, string> = {
-    em_progresso: "var(--gradient-primary)",
-    concluido: "var(--gradient-accent)",
-    pausado: "oklch(0.5 0.03 270)",
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const t = editTitle.trim();
+    if (!t) return;
+    if (editScheduled && !editDate) {
+      toast.error("Selecione uma data");
+      return;
+    }
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("strategies")
+      .update({
+        title: t,
+        description: editDescription.trim() || null,
+        is_scheduled: editScheduled,
+        scheduled_date: editScheduled && editDate ? dateToISO(editDate) : null,
+      })
+      .eq("id", editing.id);
+    setSavingEdit(false);
+    if (error) {
+      toast.error("Falha ao atualizar", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    setEditing(null);
+    toast.success("Estratégia atualizada");
+  }
+
+  if (items === null) return <SkeletonGrid />;
+
+  const all = items;
+  const listaItems = all.filter((i) => !i.is_scheduled);
+  const agendaItems = all.filter((i) => !!i.is_scheduled);
+  const agendaGroups = groupByAgenda(agendaItems, today);
+
+  const renderCard = (s: Strategy) => {
+    const done = !!s.is_completed;
+    const overdue = isOverdue(s, today);
+    const isBusy = busy === s.id;
+    return (
+      <Card
+        key={s.id}
+        className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
+          done ? "opacity-70" : ""
+        }`}
+        style={{
+          boxShadow: "var(--shadow-card)",
+          borderLeft: overdue ? "3px solid hsl(var(--destructive))" : undefined,
+        }}
+      >
+        <div
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: done ? "var(--gradient-accent)" : "var(--gradient-primary)" }}
+        />
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle
+              className={`text-base leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
+            >
+              {s.title}
+            </CardTitle>
+            <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
+          </div>
+          {s.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {s.is_scheduled && s.scheduled_date && (
+              <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+                <CalendarDays className="h-3 w-3" />
+                {format(isoToDate(s.scheduled_date)!, "dd/MM/yyyy", { locale: ptBR })}
+              </Badge>
+            )}
+            {overdue && (
+              <Badge className="gap-1 border-destructive/50 bg-destructive/15 text-destructive">
+                <AlertTriangle className="h-3 w-3" /> Atrasado
+              </Badge>
+            )}
+            <Badge variant="secondary">{done ? "Concluída" : "Em progresso"}</Badge>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              variant={done ? "secondary" : "default"}
+              onClick={() => toggleStrategy(s)}
+              disabled={isBusy}
+              className="flex-1 gap-2"
+            >
+              {isBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : done ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              {done ? "Reabrir" : "Concluir"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => openEdit(s)} className="gap-2">
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => deleteStrategy(s)}
+              disabled={isBusy}
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
-    <>
-      <div className="grid gap-4 md:grid-cols-2">
-        {goals.map((g) => {
-          const done = g.status === "concluido";
-          const isCompleting = busy?.id === g.id && busy.action === "complete";
-          const isDeleting = busy?.id === g.id && busy.action === "delete";
-          return (
-            <Card
-              key={g.id}
-              className={`group relative overflow-hidden border-border bg-card/70 backdrop-blur transition-opacity ${
-                done ? "opacity-70" : ""
-              }`}
-              style={{ boxShadow: "var(--shadow-card)" }}
-            >
-              <div
-                className="absolute inset-x-0 top-0 h-1"
-                style={{
-                  background: statusColor[g.status ?? "em_progresso"] ?? statusColor.em_progresso,
-                }}
-              />
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <CardTitle
-                    className={`text-lg leading-snug ${done ? "line-through text-muted-foreground" : ""}`}
-                  >
-                    {g.objective}
-                  </CardTitle>
-                  <Target className="h-5 w-5 shrink-0 text-primary opacity-60 transition-opacity group-hover:opacity-100" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {g.horizon && (
-                    <Badge variant="outline" className="border-accent/40 text-accent">
-                      {g.horizon}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary">
-                    {(g.status ?? "em_progresso").replace("_", " ")}
-                  </Badge>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant={done ? "secondary" : "default"}
-                    onClick={() => completeGoal(g)}
-                    disabled={done || isCompleting}
-                    className={
-                      done
-                        ? "flex-1 gap-2 rounded-lg border-0 bg-gradient-to-r from-[#73C5EA] to-[#88CED6] text-white hover:opacity-95 disabled:opacity-100 dark:from-[#065f46] dark:to-[#0d9488] dark:text-black"
-                        : "flex-1 gap-2"
-                    }
-                  >
-                    {isCompleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : done ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    {done ? "Concluído hoje" : "Concluir"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditing(g)}
-                    aria-label={`Editar ${g.objective}`}
-                    title="Editar estratégia"
-                    className="gap-2"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => deleteGoal(g)}
-                    disabled={isDeleting}
-                    className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Excluir ${g.objective}`}
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <div className="space-y-6">
+      <Card
+        className="border-border bg-card/70 backdrop-blur"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Target className="h-5 w-5 text-primary" /> Nova estratégia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={createStrategy} className="space-y-3">
+            <Input
+              placeholder="Título da estratégia"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <Textarea
+              placeholder="Descrição (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+            <ScheduleField
+              scheduled={scheduled}
+              setScheduled={setScheduled}
+              date={scheduledDate}
+              setDate={setScheduledDate}
+              idPrefix="strat-new"
+            />
+            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between">
+        <ViewModeSelector value={view} onChange={setView} />
+        <span className="text-xs text-muted-foreground">
+          {view === "lista" ? `${listaItems.length} itens` : `${agendaItems.length} agendadas`}
+        </span>
       </div>
-      <EditGoalModal
-        goal={editing}
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        onSaved={(updated) =>
-          setGoals((curr) => (curr ?? []).map((g) => (g.id === updated.id ? updated : g)))
-        }
-      />
-    </>
+
+      {view === "lista" &&
+        (listaItems.length === 0 ? (
+          <EmptyState
+            icon={<Target className="h-8 w-8" />}
+            title="Nenhuma estratégia na lista"
+            description="Crie uma estratégia acima ou veja a aba Agenda."
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">{listaItems.map(renderCard)}</div>
+        ))}
+
+      {view === "agenda" &&
+        (agendaGroups.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-8 w-8" />}
+            title="Nenhuma estratégia agendada"
+            description="Ative 'Agendar Missão?' ao criar uma estratégia."
+          />
+        ) : (
+          <div className="space-y-5">
+            {agendaGroups.map((g) => (
+              <section key={g.key} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
+                      g.key === "atrasado"
+                        ? "border border-destructive/40 bg-destructive/10 text-destructive"
+                        : "border border-primary/30 bg-primary/10 text-primary",
+                    )}
+                  >
+                    {g.key === "atrasado" ? (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : (
+                      <CalendarDays className="h-3.5 w-3.5" />
+                    )}
+                    {g.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{g.items.length}</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">{g.items.map(renderCard)}</div>
+              </section>
+            ))}
+          </div>
+        ))}
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" /> Editar estratégia
+            </DialogTitle>
+            <DialogDescription>Atualize título, descrição e agendamento.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-3">
+            <Input
+              placeholder="Título"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+            />
+            <Textarea
+              placeholder="Descrição"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={2}
+            />
+            <ScheduleField
+              scheduled={editScheduled}
+              setScheduled={setEditScheduled}
+              date={editDate}
+              setDate={setEditDate}
+              idPrefix="strat-edit"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingEdit || !editTitle.trim()} className="gap-2">
+                {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
