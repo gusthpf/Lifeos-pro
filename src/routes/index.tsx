@@ -60,6 +60,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon, ListFilter } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
