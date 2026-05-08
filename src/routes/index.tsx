@@ -4057,11 +4057,7 @@ function ManagementBar() {
       <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("habit")}>
         <Plus className="h-3.5 w-3.5" /> Novo Hábito
       </Button>
-      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("goal")}>
-        <Plus className="h-3.5 w-3.5" /> Nova Estratégia
-      </Button>
       <NewHabitModal open={open === "habit"} onClose={() => setOpen(null)} />
-      <NewGoalModal open={open === "goal"} onClose={() => setOpen(null)} />
     </div>
   );
 }
