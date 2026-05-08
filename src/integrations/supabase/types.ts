@@ -342,6 +342,8 @@ export type Database = {
           description: string | null
           id: string
           is_completed: boolean | null
+          is_scheduled: boolean | null
+          scheduled_date: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -351,6 +353,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_completed?: boolean | null
+          is_scheduled?: boolean | null
+          scheduled_date?: string | null
           title: string
           updated_at?: string | null
           user_id?: string
@@ -360,6 +364,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_completed?: boolean | null
+          is_scheduled?: boolean | null
+          scheduled_date?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -372,7 +378,9 @@ export type Database = {
           created_at: string | null
           id: string
           is_completed: boolean | null
+          is_scheduled: boolean | null
           priority: Database["public"]["Enums"]["priority_level"] | null
+          scheduled_date: string | null
           title: string
           updated_at: string | null
           user_id: string | null
@@ -382,7 +390,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_completed?: boolean | null
+          is_scheduled?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          scheduled_date?: string | null
           title: string
           updated_at?: string | null
           user_id?: string | null
@@ -392,7 +402,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_completed?: boolean | null
+          is_scheduled?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          scheduled_date?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
