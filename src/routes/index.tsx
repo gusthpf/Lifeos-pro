@@ -2741,6 +2741,7 @@ function TodoTab() {
   const [scheduled, setScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [view, setView] = useState<ViewMode>("lista");
+  const [createOpen, setCreateOpen] = useState(false);
   const today = useBahiaToday();
 
   function openEdit(item: TodoItem) {
