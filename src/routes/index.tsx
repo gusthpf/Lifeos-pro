@@ -2380,56 +2380,8 @@ function StrategyTab() {
     );
   };
 
-  const [createOpenState, setCreating_open] = useState(false);
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <Button onClick={() => setCreating_open(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Nova estratégia
-        </Button>
-      </div>
-
-      <Dialog open={createOpenState} onOpenChange={(v) => { setCreating_open(v); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" /> Nova estratégia
-            </DialogTitle>
-            <DialogDescription>Defina sua próxima missão estratégica.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createStrategy} className="space-y-3">
-            <Input
-              placeholder="Título da estratégia"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
-            />
-            <Textarea
-              placeholder="Descrição (opcional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-            />
-            <ScheduleField
-              scheduled={scheduled}
-              setScheduled={setScheduled}
-              date={scheduledDate}
-              setDate={setScheduledDate}
-              idPrefix="strat-new"
-              label="Agendar estratégia"
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setCreating_open(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Adicionar
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <div className="flex items-center justify-between">
         <ViewModeSelector value={view} onChange={setView} />
