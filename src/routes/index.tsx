@@ -2226,6 +2226,7 @@ function StrategyTab() {
     setScheduled(false);
     setScheduledDate(undefined);
     toast.success("Estratégia criada");
+    setCreating_open(false);
   }
 
   async function toggleStrategy(s: Strategy) {
@@ -2379,23 +2380,29 @@ function StrategyTab() {
     );
   };
 
+  const [createOpenState, setCreating_open] = useState(false);
   return (
     <div className="space-y-6">
-      <Card
-        className="border-border bg-card/70 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" /> Nova estratégia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center justify-between gap-2">
+        <Button onClick={() => setCreating_open(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Nova estratégia
+        </Button>
+      </div>
+
+      <Dialog open={createOpenState} onOpenChange={(v) => { setCreating_open(v); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Nova estratégia
+            </DialogTitle>
+            <DialogDescription>Defina sua próxima missão estratégica.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={createStrategy} className="space-y-3">
             <Input
               placeholder="Título da estratégia"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              autoFocus
             />
             <Textarea
               placeholder="Descrição (opcional)"
@@ -2409,14 +2416,20 @@ function StrategyTab() {
               date={scheduledDate}
               setDate={setScheduledDate}
               idPrefix="strat-new"
+              label="Agendar estratégia"
             />
-            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar
-            </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setCreating_open(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Adicionar
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center justify-between">
         <ViewModeSelector value={view} onChange={setView} />
@@ -2441,7 +2454,7 @@ function StrategyTab() {
           <EmptyState
             icon={<CalendarDays className="h-8 w-8" />}
             title="Nenhuma estratégia agendada"
-            description="Ative 'Agendar Missão?' ao criar uma estratégia."
+            description="Ative 'Agendar estratégia' ao criar uma estratégia."
           />
         ) : (
           <div className="space-y-5">
@@ -2498,6 +2511,7 @@ function StrategyTab() {
               date={editDate}
               setDate={setEditDate}
               idPrefix="strat-edit"
+              label="Agendar estratégia"
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
@@ -2636,19 +2650,21 @@ function ScheduleField({
   date,
   setDate,
   idPrefix,
+  label = "Agendar Missão?",
 }: {
   scheduled: boolean;
   setScheduled: (v: boolean) => void;
   date: Date | undefined;
   setDate: (d: Date | undefined) => void;
   idPrefix: string;
+  label?: string;
 }) {
   return (
     <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor={`${idPrefix}-sched`} className="flex items-center gap-2 text-sm">
           <CalendarDays className="h-4 w-4 text-primary" />
-          Agendar Missão?
+          {label}
         </Label>
         <Switch
           id={`${idPrefix}-sched`}
@@ -2725,6 +2741,7 @@ function TodoTab() {
   const [scheduled, setScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [view, setView] = useState<ViewMode>("lista");
+  const [createOpen, setCreateOpen] = useState(false);
   const today = useBahiaToday();
 
   function openEdit(item: TodoItem) {
@@ -2817,6 +2834,7 @@ function TodoTab() {
     setScheduled(false);
     setScheduledDate(undefined);
     toast.success("Tarefa adicionada");
+    setCreateOpen(false);
   }
 
   async function toggleTodo(item: TodoItem) {
@@ -2877,17 +2895,21 @@ function TodoTab() {
 
   return (
     <div className="space-y-6">
-      {/* Create form */}
-      <Card
-        className="border-border bg-card/70 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Create button + dialog */}
+      <div className="flex items-center justify-between gap-2">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Nova tarefa
+        </Button>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
+            </DialogTitle>
+            <DialogDescription>Adicione uma nova tarefa à sua lista.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={createTodo} className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -2895,6 +2917,7 @@ function TodoTab() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="flex-1"
+                autoFocus
               />
               <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
                 <SelectTrigger className="w-full sm:w-44">
@@ -2915,18 +2938,24 @@ function TodoTab() {
               date={scheduledDate}
               setDate={setScheduledDate}
               idPrefix="todo-new"
+              label="Agendar tarefa"
             />
-            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-              {creating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Adicionar
-            </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Adicionar
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {/* View selector */}
       <div className="flex items-center justify-between">
@@ -3014,7 +3043,7 @@ function TodoTab() {
           <EmptyState
             icon={<CalendarDays className="h-8 w-8" />}
             title="Nenhuma missão agendada"
-            description="Ative 'Agendar Missão?' ao criar uma tarefa para vê-la aqui."
+            description="Ative 'Agendar tarefa' ao criar uma tarefa para vê-la aqui."
           />
         ) : (
           <div className="space-y-5">
@@ -3155,6 +3184,7 @@ function TodoTab() {
               date={editDate}
               setDate={setEditDate}
               idPrefix="todo-edit"
+              label="Agendar tarefa"
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
