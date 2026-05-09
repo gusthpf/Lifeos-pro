@@ -3912,7 +3912,7 @@ function NexusTab() {
 /* ============ Helpers ============ */
 
 /* ============ MANAGEMENT BAR ============ */
-type ModalKind = "habit" | "goal" | null;
+type ModalKind = "habit" | "strategy" | "todo" | null;
 
 async function getCurrentUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getUser();
@@ -3929,8 +3929,217 @@ function ManagementBar() {
       <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("habit")}>
         <Plus className="h-3.5 w-3.5" /> Novo Hábito
       </Button>
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("strategy")}>
+        <Plus className="h-3.5 w-3.5" /> Nova Estratégia
+      </Button>
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen("todo")}>
+        <Plus className="h-3.5 w-3.5" /> Nova Tarefa
+      </Button>
       <NewHabitModal open={open === "habit"} onClose={() => setOpen(null)} />
+      <NewStrategyModal open={open === "strategy"} onClose={() => setOpen(null)} />
+      <NewTodoModal open={open === "todo"} onClose={() => setOpen(null)} />
     </div>
+  );
+}
+
+function NewStrategyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setTitle("");
+    setDescription("");
+    setScheduled(false);
+    setScheduledDate(undefined);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) return;
+    if (scheduled && !scheduledDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
+    const user_id = await getCurrentUserId();
+    if (!user_id) {
+      toast.error("Sessão expirada");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("strategies").insert({
+      user_id,
+      title: t,
+      description: description.trim() || null,
+      is_scheduled: scheduled,
+      scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao criar estratégia", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success("Estratégia criada");
+    reset();
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" /> Nova Estratégia
+          </DialogTitle>
+          <DialogDescription>Defina sua próxima missão estratégica.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="s-title">Título</Label>
+            <Input
+              id="s-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+              maxLength={120}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="s-desc">Descrição</Label>
+            <Textarea
+              id="s-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Opcional"
+            />
+          </div>
+          <ScheduleField
+            scheduled={scheduled}
+            setScheduled={setScheduled}
+            date={scheduledDate}
+            setDate={setScheduledDate}
+            idPrefix="mgmt-strat"
+            label="Agendar estratégia"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving || !title.trim()} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewTodoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState<Priority>("Média");
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setTitle("");
+    setPriority("Média");
+    setScheduled(false);
+    setScheduledDate(undefined);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) return;
+    if (scheduled && !scheduledDate) {
+      toast.error("Selecione uma data para a missão agendada");
+      return;
+    }
+    const user_id = await getCurrentUserId();
+    if (!user_id) {
+      toast.error("Sessão expirada");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("todo_list").insert({
+      user_id,
+      title: t,
+      priority,
+      is_scheduled: scheduled,
+      scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao criar tarefa", { description: "Tente novamente mais tarde." });
+      return;
+    }
+    toast.success("Tarefa adicionada");
+    reset();
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-primary" /> Nova Tarefa
+          </DialogTitle>
+          <DialogDescription>Adicione uma nova tarefa à sua lista.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="t-title">Título</Label>
+            <Input
+              id="t-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+              maxLength={200}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="t-prio">Prioridade</Label>
+            <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+              <SelectTrigger id="t-prio">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_ORDER.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PRIORITY_META[p].emoji} {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ScheduleField
+            scheduled={scheduled}
+            setScheduled={setScheduled}
+            date={scheduledDate}
+            setDate={setScheduledDate}
+            idPrefix="mgmt-todo"
+            label="Agendar tarefa"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving || !title.trim()} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
