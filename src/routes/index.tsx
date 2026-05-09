@@ -2191,38 +2191,6 @@ function StrategyTab() {
     };
   }, [user?.id]);
 
-  async function createStrategy(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) {
-      toast.error("Sessão expirada");
-      return;
-    }
-    const t = title.trim();
-    if (!t) return;
-    if (scheduled && !scheduledDate) {
-      toast.error("Selecione uma data para a missão agendada");
-      return;
-    }
-    setCreating(true);
-    const { error } = await supabase.from("strategies").insert({
-      user_id: user.id,
-      title: t,
-      description: description.trim() || null,
-      is_scheduled: scheduled,
-      scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
-    });
-    setCreating(false);
-    if (error) {
-      toast.error("Falha ao criar estratégia", { description: "Tente novamente mais tarde." });
-      return;
-    }
-    setTitle("");
-    setDescription("");
-    setScheduled(false);
-    setScheduledDate(undefined);
-    toast.success("Estratégia criada");
-    setCreating_open(false);
-  }
 
   async function toggleStrategy(s: Strategy) {
     setBusy(s.id);
