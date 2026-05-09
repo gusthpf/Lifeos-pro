@@ -2134,11 +2134,7 @@ type Strategy = {
 function StrategyTab() {
   const { user } = AuthCtx.useAuth();
   const [items, setItems] = useState<Strategy[] | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [scheduled, setScheduled] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
-  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("lista");
   const [editing, setEditing] = useState<Strategy | null>(null);
