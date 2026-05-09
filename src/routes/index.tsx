@@ -3043,7 +3043,7 @@ function TodoTab() {
           <EmptyState
             icon={<CalendarDays className="h-8 w-8" />}
             title="Nenhuma missão agendada"
-            description="Ative 'Agendar Missão?' ao criar uma tarefa para vê-la aqui."
+            description="Ative 'Agendar tarefa' ao criar uma tarefa para vê-la aqui."
           />
         ) : (
           <div className="space-y-5">
