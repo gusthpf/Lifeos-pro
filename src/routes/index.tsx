@@ -2454,7 +2454,7 @@ function StrategyTab() {
           <EmptyState
             icon={<CalendarDays className="h-8 w-8" />}
             title="Nenhuma estratégia agendada"
-            description="Ative 'Agendar Missão?' ao criar uma estratégia."
+            description="Ative 'Agendar estratégia' ao criar uma estratégia."
           />
         ) : (
           <div className="space-y-5">
