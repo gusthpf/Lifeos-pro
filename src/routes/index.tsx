@@ -2226,6 +2226,7 @@ function StrategyTab() {
     setScheduled(false);
     setScheduledDate(undefined);
     toast.success("Estratégia criada");
+    setCreating_open(false);
   }
 
   async function toggleStrategy(s: Strategy) {
