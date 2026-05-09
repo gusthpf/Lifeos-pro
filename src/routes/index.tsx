@@ -2379,7 +2379,7 @@ function StrategyTab() {
     );
   };
 
-  const [createOpen, setCreateOpen] = [false, () => {}] as any; // placeholder removed below
+  const [createOpenState, setCreating_open] = useState(false);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
