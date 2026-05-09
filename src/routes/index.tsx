@@ -2895,17 +2895,21 @@ function TodoTab() {
 
   return (
     <div className="space-y-6">
-      {/* Create form */}
-      <Card
-        className="border-border bg-card/70 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Create button + dialog */}
+      <div className="flex items-center justify-between gap-2">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Nova tarefa
+        </Button>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
+            </DialogTitle>
+            <DialogDescription>Adicione uma nova tarefa à sua lista.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={createTodo} className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -2913,6 +2917,7 @@ function TodoTab() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="flex-1"
+                autoFocus
               />
               <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
                 <SelectTrigger className="w-full sm:w-44">
@@ -2933,18 +2938,24 @@ function TodoTab() {
               date={scheduledDate}
               setDate={setScheduledDate}
               idPrefix="todo-new"
+              label="Agendar tarefa"
             />
-            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-              {creating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Adicionar
-            </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Adicionar
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {/* View selector */}
       <div className="flex items-center justify-between">
