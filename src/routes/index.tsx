@@ -2834,6 +2834,7 @@ function TodoTab() {
     setScheduled(false);
     setScheduledDate(undefined);
     toast.success("Tarefa adicionada");
+    setCreateOpen(false);
   }
 
   async function toggleTodo(item: TodoItem) {
