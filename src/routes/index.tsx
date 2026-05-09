@@ -2798,67 +2798,6 @@ function TodoTab() {
 
   return (
     <div className="space-y-6">
-      {/* Create button + dialog */}
-      <div className="flex items-center justify-between gap-2">
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Nova tarefa
-        </Button>
-      </div>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ListTodo className="h-5 w-5 text-primary" /> Nova tarefa
-            </DialogTitle>
-            <DialogDescription>Adicione uma nova tarefa à sua lista.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createTodo} className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                placeholder="O que precisa ser feito?"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="flex-1"
-                autoFocus
-              />
-              <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITY_ORDER.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {PRIORITY_META[p].emoji} {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <ScheduleField
-              scheduled={scheduled}
-              setScheduled={setScheduled}
-              date={scheduledDate}
-              setDate={setScheduledDate}
-              idPrefix="todo-new"
-              label="Agendar tarefa"
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-                {creating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                Adicionar
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* View selector */}
       <div className="flex items-center justify-between">
