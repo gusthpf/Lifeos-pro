@@ -2636,19 +2636,21 @@ function ScheduleField({
   date,
   setDate,
   idPrefix,
+  label = "Agendar Missão?",
 }: {
   scheduled: boolean;
   setScheduled: (v: boolean) => void;
   date: Date | undefined;
   setDate: (d: Date | undefined) => void;
   idPrefix: string;
+  label?: string;
 }) {
   return (
     <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor={`${idPrefix}-sched`} className="flex items-center gap-2 text-sm">
           <CalendarDays className="h-4 w-4 text-primary" />
-          Agendar Missão?
+          {label}
         </Label>
         <Switch
           id={`${idPrefix}-sched`}
