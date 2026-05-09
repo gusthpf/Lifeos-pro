@@ -3184,6 +3184,7 @@ function TodoTab() {
               date={editDate}
               setDate={setEditDate}
               idPrefix="todo-edit"
+              label="Agendar tarefa"
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
