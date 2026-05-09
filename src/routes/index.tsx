@@ -2135,7 +2135,6 @@ function StrategyTab() {
   const { user } = AuthCtx.useAuth();
   const [items, setItems] = useState<Strategy[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("lista");
   const [editing, setEditing] = useState<Strategy | null>(null);
   const [editTitle, setEditTitle] = useState("");
