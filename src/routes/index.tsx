@@ -2709,42 +2709,36 @@ function TodoTab() {
     load();
   }, []);
 
-  async function createTodo(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) {
-      toast.error("Sessão expirada", { description: "Faça login para criar tarefas." });
-      return;
-    }
-    const t = title.trim();
-    if (!t) return;
-    if (scheduled && !scheduledDate) {
-      toast.error("Selecione uma data para a missão agendada");
-      return;
-    }
-    setCreating(true);
-    const { data, error } = await supabase
-      .from("todo_list")
-      .insert({
-        user_id: user.id,
-        title: t,
-        priority,
-        is_scheduled: scheduled,
-        scheduled_date: scheduled && scheduledDate ? dateToISO(scheduledDate) : null,
-      })
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
-      .single();
-    setCreating(false);
-    if (error) {
-      toast.error("Falha ao criar tarefa", { description: "Tente novamente mais tarde." });
-      return;
-    }
-    setItems((curr) => [data as TodoItem, ...(curr ?? [])]);
-    setTitle("");
-    setScheduled(false);
-    setScheduledDate(undefined);
-    toast.success("Tarefa adicionada");
-    setCreateOpen(false);
-  }
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`todo-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "todo_list", filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as TodoItem;
+            setItems((curr) => {
+              const list = curr ?? [];
+              if (list.some((s) => s.id === row.id)) return list;
+              return [row, ...list];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const row = payload.new as TodoItem;
+            setItems((curr) => (curr ?? []).map((s) => (s.id === row.id ? { ...s, ...row } : s)));
+          } else if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as any)?.id;
+            if (oldId) setItems((curr) => (curr ?? []).filter((s) => s.id !== oldId));
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
 
   async function toggleTodo(item: TodoItem) {
     setBusy(item.id);
