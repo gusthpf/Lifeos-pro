@@ -2642,9 +2642,6 @@ function isOverdue(item: Schedulable & { is_completed?: boolean | null }, todayI
 function TodoTab() {
   const { user } = AuthCtx.useAuth();
   const [items, setItems] = useState<TodoItem[] | null>(null);
-  const [title, setTitle] = useState("");
-  const [priority, setPriority] = useState<Priority>("Média");
-  const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [editing, setEditing] = useState<TodoItem | null>(null);
@@ -2653,10 +2650,7 @@ function TodoTab() {
   const [editScheduled, setEditScheduled] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [savingEdit, setSavingEdit] = useState(false);
-  const [scheduled, setScheduled] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [view, setView] = useState<ViewMode>("lista");
-  const [createOpen, setCreateOpen] = useState(false);
   const today = useBahiaToday();
 
   function openEdit(item: TodoItem) {
