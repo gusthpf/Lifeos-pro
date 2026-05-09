@@ -2379,23 +2379,29 @@ function StrategyTab() {
     );
   };
 
+  const [createOpen, setCreateOpen] = [false, () => {}] as any; // placeholder removed below
   return (
     <div className="space-y-6">
-      <Card
-        className="border-border bg-card/70 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" /> Nova estratégia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center justify-between gap-2">
+        <Button onClick={() => setCreating_open(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Nova estratégia
+        </Button>
+      </div>
+
+      <Dialog open={createOpenState} onOpenChange={(v) => { setCreating_open(v); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Nova estratégia
+            </DialogTitle>
+            <DialogDescription>Defina sua próxima missão estratégica.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={createStrategy} className="space-y-3">
             <Input
               placeholder="Título da estratégia"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              autoFocus
             />
             <Textarea
               placeholder="Descrição (opcional)"
@@ -2409,14 +2415,20 @@ function StrategyTab() {
               date={scheduledDate}
               setDate={setScheduledDate}
               idPrefix="strat-new"
+              label="Agendar estratégia"
             />
-            <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar
-            </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setCreating_open(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating || !title.trim()} className="gap-2">
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Adicionar
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center justify-between">
         <ViewModeSelector value={view} onChange={setView} />
