@@ -3176,13 +3176,14 @@ function ReflectionTab() {
   const [entries, setEntries] = useState<JournalEntry[] | null>(null);
   const [coach, setCoach] = useState<CoachResponse | null>(null);
   const [coaching, setCoaching] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   async function load() {
     const { data } = await supabase
       .from("journal")
       .select("id,content,sentiment,created_at")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(200);
     setEntries((data ?? []) as JournalEntry[]);
   }
 
