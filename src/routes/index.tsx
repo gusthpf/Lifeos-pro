@@ -3176,13 +3176,14 @@ function ReflectionTab() {
   const [entries, setEntries] = useState<JournalEntry[] | null>(null);
   const [coach, setCoach] = useState<CoachResponse | null>(null);
   const [coaching, setCoaching] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   async function load() {
     const { data } = await supabase
       .from("journal")
       .select("id,content,sentiment,created_at")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(200);
     setEntries((data ?? []) as JournalEntry[]);
   }
 
@@ -3334,13 +3335,13 @@ function ReflectionTab() {
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
           Reflexões recentes
         </h3>
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+        <div className="space-y-3">
           {entries === null ? (
             <SkeletonGrid rows={3} />
           ) : entries.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma reflexão ainda.</p>
           ) : (
-            entries.map((e) => (
+            entries.slice(0, 3).map((e) => (
               <Card key={e.id} className="border-border bg-card/50">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
@@ -3361,6 +3362,56 @@ function ReflectionTab() {
             ))
           )}
         </div>
+
+        {entries && entries.length > 3 && (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setArchiveOpen(true)}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Archive className="h-4 w-4" />
+              Ver arquivo ({entries.length - 3})
+            </Button>
+          </div>
+        )}
+
+        <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Archive className="h-5 w-5" /> Arquivo de reflexões
+              </DialogTitle>
+              <DialogDescription>Reflexões anteriores às 3 mais recentes.</DialogDescription>
+            </DialogHeader>
+            {!entries || entries.length <= 3 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma reflexão arquivada ainda.</p>
+            ) : (
+              <div className="space-y-3">
+                {entries.slice(3).map((e) => (
+                  <Card key={e.id} className="border-border bg-card/50">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {e.created_at ? new Date(e.created_at).toLocaleString("pt-BR") : ""}
+                        </span>
+                        {e.sentiment && (
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {e.sentiment}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                        {e.content}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
