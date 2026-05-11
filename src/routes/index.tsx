@@ -3762,80 +3762,292 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 /* ============ NEXUS (Chat-Terminal) ============ */
 type ChatMsg = { role: "user" | "assistant"; content: string };
+type NexusSession = { id: string; title: string; updated_at: string };
+
+const NEXUS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-chat`;
 
 function NexusTab() {
+  const { user } = AuthCtx.useAuth();
+  const [sessions, setSessions] = useState<NexusSession[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedIdxs, setSavedIdxs] = useState<Set<number>>(new Set());
+  const [useContext, setUseContext] = useState(true);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  async function loadSessions() {
+    const { data } = await supabase
+      .from("nexus_sessions")
+      .select("id,title,updated_at")
+      .order("updated_at", { ascending: false });
+    setSessions((data ?? []) as NexusSession[]);
+    return (data ?? []) as NexusSession[];
+  }
+
+  async function loadMessages(id: string) {
+    const { data } = await supabase
+      .from("nexus_messages")
+      .select("role,content")
+      .eq("session_id", id)
+      .order("created_at");
+    setMessages(((data ?? []) as any[]).map((m) => ({ role: m.role, content: m.content })));
+    setSavedIdxs(new Set());
+  }
+
+  useEffect(() => {
+    (async () => {
+      const list = await loadSessions();
+      if (list.length > 0) {
+        setSessionId(list[0].id);
+        await loadMessages(list[0].id);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, sending]);
+
+  async function ensureSession(firstUserText: string): Promise<string | null> {
+    if (sessionId) return sessionId;
+    if (!user) {
+      toast.error("Sessão expirada");
+      return null;
+    }
+    const title = firstUserText.slice(0, 60) || "Nova sessão";
+    const { data, error } = await supabase
+      .from("nexus_sessions")
+      .insert({ user_id: user.id, title })
+      .select("id,title,updated_at")
+      .single();
+    if (error || !data) {
+      toast.error("Não consegui criar a sessão");
+      return null;
+    }
+    setSessionId(data.id);
+    setSessions((s) => [data as NexusSession, ...s]);
+    return data.id;
+  }
+
+  async function persistMessage(sid: string, role: "user" | "assistant", content: string) {
+    if (!user) return;
+    await supabase.from("nexus_messages").insert({
+      session_id: sid,
+      user_id: user.id,
+      role,
+      content,
+    });
+    await supabase.from("nexus_sessions").update({ updated_at: new Date().toISOString() }).eq("id", sid);
+  }
+
+  function newSession() {
+    abortRef.current?.abort();
+    setSessionId(null);
+    setMessages([]);
+    setSavedIdxs(new Set());
+    setInput("");
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  async function deleteSession(id: string) {
+    const { error } = await supabase.from("nexus_sessions").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir sessão");
+      return;
+    }
+    const next = sessions.filter((s) => s.id !== id);
+    setSessions(next);
+    if (id === sessionId) {
+      if (next.length > 0) {
+        setSessionId(next[0].id);
+        await loadMessages(next[0].id);
+      } else {
+        setSessionId(null);
+        setMessages([]);
+      }
+    }
+  }
+
+  async function pickSession(id: string) {
+    if (id === sessionId) return;
+    abortRef.current?.abort();
+    setSessionId(id);
+    await loadMessages(id);
+  }
 
   async function send() {
-    const text = input.trim();
-    if (!text || sending) return;
-    const next = [...messages, { role: "user" as const, content: text }];
+    const raw = input.trim();
+    if (!raw || sending) return;
+
+    // Comandos
+    if (raw === "/clear") {
+      newSession();
+      return;
+    }
+    if (raw === "/help") {
+      setInput("");
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            "Comandos: /clear (nova sessão) · /help (esta lista) · Enter envia · Shift+Enter quebra linha · botão 📋 copia bloco de código · 'Salvar na Wiki' arquiva resposta com código (+25 XP).",
+        },
+      ]);
+      return;
+    }
+
+    const sid = await ensureSession(raw);
+    if (!sid) return;
+
+    const userMsg: ChatMsg = { role: "user", content: raw };
+    const next = [...messages, userMsg];
     setMessages(next);
     setInput("");
     setSending(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("nexus-chat", {
-        body: { messages: next },
+    void persistMessage(sid, "user", raw);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let assistantSoFar = "";
+    const upsertAssistant = (chunk: string) => {
+      assistantSoFar += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant") {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+        }
+        return [...prev, { role: "assistant", content: assistantSoFar }];
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const reply = (data as any)?.message ?? "";
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+    };
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token =
+        sessionData.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const resp = await fetch(NEXUS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ messages: next, useContext }),
+        signal: controller.signal,
+      });
+
+      if (!resp.ok || !resp.body) {
+        if (resp.status === 429) toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
+        else if (resp.status === 402) toast.error("Créditos esgotados", { description: "Adicione em Workspace > Usage." });
+        else toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
+        setMessages((m) => m.slice(0, -1));
+        setInput(raw);
+        setSending(false);
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let done = false;
+      while (!done) {
+        const { done: rd, value } = await reader.read();
+        if (rd) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          let line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") {
+            done = true;
+            break;
+          }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const c = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (c) upsertAssistant(c);
+          } catch {
+            buf = line + "\n" + buf;
+            break;
+          }
+        }
+      }
+
+      if (assistantSoFar) {
+        await persistMessage(sid, "assistant", assistantSoFar);
+        // Atualiza ordem da sessão na lista
+        setSessions((s) => {
+          const found = s.find((x) => x.id === sid);
+          if (!found) return s;
+          const updated = { ...found, updated_at: new Date().toISOString() };
+          return [updated, ...s.filter((x) => x.id !== sid)];
+        });
+      }
     } catch (e: any) {
-      toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
-      setMessages((m) => m.slice(0, -1));
-      setInput(text);
+      if (e?.name !== "AbortError") {
+        toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
+        setMessages((m) => m.slice(0, -1));
+        setInput(raw);
+      }
     } finally {
       setSending(false);
     }
   }
 
+  async function copyCode(key: string, content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      toast.error("Não consegui copiar");
+    }
+  }
+
   async function saveToWiki(idx: number, content: string) {
     setSavingIdx(idx);
-    // Título: 1ª linha não-vazia, máx 80 chars
     const firstLine =
       content
         .split("\n")
         .map((l) => l.trim())
         .find((l) => l && !l.startsWith("```")) ?? "Solução técnica";
     const titulo = firstLine.slice(0, 80);
-
-    // Tags = linguagens dos blocos ```lang
     const tags = Array.from(
       new Set(Array.from(content.matchAll(/```([a-zA-Z0-9_+-]+)/g)).map((m) => m[1].toLowerCase())),
     );
-
-    const { data: userRes } = await supabase.auth.getUser();
-    const user_id = userRes?.user?.id ?? null;
-
+    const user_id = user?.id ?? null;
     const { error } = await supabase
       .from("kb_tecnica")
       .insert({ titulo, solucao: content, tags, user_id });
-
     if (error) {
       setSavingIdx(null);
-      toast.error("Falha ao salvar na Wiki", { description: "Tente novamente mais tarde." });
+      toast.error("Falha ao salvar na Wiki");
       return;
     }
-
     if (user_id) {
-      const { error: rpcErr } = await supabase.rpc("adicionar_xp", {
-        xp_ganho: 25,
-      });
+      const { error: rpcErr } = await supabase.rpc("adicionar_xp", { xp_ganho: 25 });
       if (rpcErr) console.warn("XP RPC error:", rpcErr.message);
     }
-
     setSavedIdxs((s) => new Set(s).add(idx));
     setSavingIdx(null);
     toast.success("Solução salva na Wiki", { description: "+25 XP de Conhecimento" });
   }
 
-  function renderContent(text: string) {
-    // Divide em segmentos: texto e blocos ```lang ... ```
+  function renderContent(text: string, msgIdx: number) {
     const parts: { type: "text" | "code"; lang?: string; content: string }[] = [];
     const re = /```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g;
     let last = 0;
@@ -3852,10 +4064,27 @@ function NexusTab() {
       p.type === "code" ? (
         <pre
           key={i}
-          className="my-2 overflow-x-auto rounded-md border border-primary/30 p-3 text-xs leading-relaxed"
+          className="my-2 overflow-x-auto rounded-md border border-primary/30 p-3 text-xs leading-relaxed relative group"
           style={{ background: "var(--nexus-code-bg)" }}
         >
-          <div className="mb-1 text-[10px] uppercase tracking-widest text-primary/70">{p.lang}</div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-primary/70">{p.lang}</span>
+            <button
+              onClick={() => copyCode(`${msgIdx}-${i}`, p.content)}
+              className="text-[10px] uppercase tracking-widest text-primary/60 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+              aria-label="Copiar código"
+            >
+              {copiedKey === `${msgIdx}-${i}` ? (
+                <>
+                  <Check className="h-3 w-3" /> copiado
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" /> copiar
+                </>
+              )}
+            </button>
+          </div>
           <code style={{ color: "var(--nexus-code-fg)" }}>{p.content}</code>
         </pre>
       ) : (
@@ -3867,98 +4096,157 @@ function NexusTab() {
   }
 
   return (
-    <Card
-      className="border-primary/30 font-mono"
-      style={{ boxShadow: "var(--shadow-glow)", background: "var(--nexus-surface)" }}
-    >
-      <CardHeader className="border-b border-primary/20">
-        <CardTitle className="flex items-center gap-2 text-base text-primary">
-          <Terminal className="h-4 w-4" />
-          nexus@coach:~$
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="h-[480px] overflow-y-auto p-4 text-sm">
-          {messages.length === 0 ? (
-            <div className="text-muted-foreground">
-              <p>// Pronto. Mande dúvida técnica ou desabafo.</p>
-              <p className="mt-1 opacity-60">
-                // Respostas com bloco de código podem ser salvas na Wiki (+25 XP).
+    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      {/* Sidebar de sessões */}
+      <Card className="border-primary/20 bg-card/60 backdrop-blur lg:max-h-[600px]">
+        <CardHeader className="border-b border-primary/10 p-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={newSession}
+            className="w-full gap-2 border-primary/40 font-mono text-xs"
+          >
+            <MessageSquarePlus className="h-3.5 w-3.5" /> Nova sessão
+          </Button>
+        </CardHeader>
+        <CardContent className="p-2">
+          <div className="max-h-[480px] overflow-y-auto space-y-1">
+            {sessions.length === 0 ? (
+              <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+                Nenhuma sessão ainda.
               </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((m, i) => {
-                const isUser = m.role === "user";
-                const hasCode = !isUser && /```[\s\S]+?```/.test(m.content);
+            ) : (
+              sessions.map((s) => {
+                const active = s.id === sessionId;
                 return (
-                  <div key={i} className="space-y-1">
-                    <div
-                      className={`text-[10px] uppercase tracking-widest ${
-                        isUser ? "text-accent" : "text-primary"
-                      }`}
+                  <div
+                    key={s.id}
+                    className={`group flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
+                      active
+                        ? "bg-primary/15 text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    }`}
+                    onClick={() => pickSession(s.id)}
+                  >
+                    <span className="flex-1 truncate text-xs font-mono">{s.title}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm("Excluir esta sessão?")) deleteSession(s.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                      aria-label="Excluir sessão"
                     >
-                      {isUser ? "USER" : "NEXUS"}:
-                    </div>
-                    <div className="text-foreground/90">{renderContent(m.content)}</div>
-                    {hasCode && (
-                      <div className="pt-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 gap-1 border-primary/40 text-xs"
-                          disabled={savingIdx === i || savedIdxs.has(i)}
-                          onClick={() => saveToWiki(i, m.content)}
-                        >
-                          {savingIdx === i ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : savedIdxs.has(i) ? (
-                            <>
-                              <Check className="h-3 w-3" /> Salvo na Wiki
-                            </>
-                          ) : (
-                            <>
-                              <Save className="h-3 w-3" /> Salvar na Wiki (+25 XP)
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
                 );
-              })}
-              {sending && (
-                <div className="flex items-center gap-2 text-xs text-primary/70">
-                  <Loader2 className="h-3 w-3 animate-spin" /> nexus pensando...
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div
-          className="flex items-center gap-2 border-t border-primary/20 p-3"
-          style={{ background: "var(--nexus-surface-strong)" }}
-        >
-          <span className="text-primary">$</span>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Dúvida técnica ou desabafo..."
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-            disabled={sending}
-          />
-          <Button size="sm" onClick={send} disabled={sending || !input.trim()} className="gap-1">
-            <Send className="h-3 w-3" /> Enviar
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+              })
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chat */}
+      <Card
+        className="border-primary/30 font-mono"
+        style={{ boxShadow: "var(--shadow-glow)", background: "var(--nexus-surface)" }}
+      >
+        <CardHeader className="border-b border-primary/20 flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base text-primary">
+            <Terminal className="h-4 w-4" />
+            nexus@coach:~$
+          </CardTitle>
+          <label className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground cursor-pointer">
+            <Switch checked={useContext} onCheckedChange={setUseContext} />
+            contexto
+          </label>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div ref={scrollRef} className="h-[480px] overflow-y-auto p-4 text-sm">
+            {messages.length === 0 ? (
+              <div className="text-muted-foreground space-y-1">
+                <p>// Pronto. Mande dúvida técnica ou desabafo.</p>
+                <p className="opacity-60">
+                  // Modo coach-mentor: leio seus hábitos, reflexões e tarefas dos últimos 14 dias.
+                </p>
+                <p className="opacity-60">// /help para comandos · /clear nova sessão</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((m, i) => {
+                  const isUser = m.role === "user";
+                  const hasCode = !isUser && /```[\s\S]+?```/.test(m.content);
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div
+                        className={`text-[10px] uppercase tracking-widest ${
+                          isUser ? "text-accent" : "text-primary"
+                        }`}
+                      >
+                        {isUser ? "USER" : "NEXUS"}:
+                      </div>
+                      <div className="text-foreground/90">{renderContent(m.content, i)}</div>
+                      {hasCode && (
+                        <div className="pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 border-primary/40 text-xs"
+                            disabled={savingIdx === i || savedIdxs.has(i)}
+                            onClick={() => saveToWiki(i, m.content)}
+                          >
+                            {savingIdx === i ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : savedIdxs.has(i) ? (
+                              <>
+                                <Check className="h-3 w-3" /> Salvo na Wiki
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-3 w-3" /> Salvar na Wiki (+25 XP)
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {sending && (
+                  <div className="flex items-center gap-2 text-xs text-primary/70">
+                    <Loader2 className="h-3 w-3 animate-spin" /> nexus pensando...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div
+            className="flex items-center gap-2 border-t border-primary/20 p-3"
+            style={{ background: "var(--nexus-surface-strong)" }}
+          >
+            <span className="text-primary">$</span>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder="Dúvida técnica, desabafo ou /help..."
+              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+              disabled={sending}
+            />
+            <Button size="sm" onClick={send} disabled={sending || !input.trim()} className="gap-1">
+              <Send className="h-3 w-3" /> Enviar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
