@@ -58,6 +58,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   AlertCircle,
+  Copy,
+  MessageSquarePlus,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
