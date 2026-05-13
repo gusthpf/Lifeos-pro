@@ -114,8 +114,13 @@ export type Database = {
           category: string | null
           created_at: string | null
           duration: number | null
+          duration_unit: string | null
+          duration_value: number | null
+          end_date: string | null
           frequency_type: string | null
           id: string
+          recurrence_type: string | null
+          repeat_days: string[] | null
           target_per_period: number | null
           title: string
           updated_at: string | null
@@ -126,8 +131,13 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           duration?: number | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          end_date?: string | null
           frequency_type?: string | null
           id?: string
+          recurrence_type?: string | null
+          repeat_days?: string[] | null
           target_per_period?: number | null
           title: string
           updated_at?: string | null
@@ -138,8 +148,13 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           duration?: number | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          end_date?: string | null
           frequency_type?: string | null
           id?: string
+          recurrence_type?: string | null
+          repeat_days?: string[] | null
           target_per_period?: number | null
           title?: string
           updated_at?: string | null

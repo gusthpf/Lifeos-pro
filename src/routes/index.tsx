@@ -65,9 +65,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, addWeeks, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, ListFilter } from "lucide-react";
+import { CalendarIcon, ListFilter, Repeat } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -103,6 +104,21 @@ export const Route = createFileRoute("/")({
 });
 
 type FrequencyType = "diario" | "semanal" | "mensal";
+type RecurrenceType = "continuous" | "interval";
+type DurationUnit = "weeks" | "months";
+const WEEKDAYS: { code: string; label: string; jsDay: number }[] = [
+  { code: "Dom", label: "Dom", jsDay: 0 },
+  { code: "Seg", label: "Seg", jsDay: 1 },
+  { code: "Ter", label: "Ter", jsDay: 2 },
+  { code: "Qua", label: "Qua", jsDay: 3 },
+  { code: "Qui", label: "Qui", jsDay: 4 },
+  { code: "Sex", label: "Sex", jsDay: 5 },
+  { code: "Sáb", label: "Sáb", jsDay: 6 },
+];
+function weekdayCodeFromISO(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  return WEEKDAYS[d.getDay()].code;
+}
 type Habit = {
   id: string;
   title: string;
@@ -111,6 +127,11 @@ type Habit = {
   frequency_type: string | null;
   duration: number | null;
   target_per_period: number | null;
+  recurrence_type?: string | null;
+  repeat_days?: string[] | null;
+  duration_value?: number | null;
+  duration_unit?: string | null;
+  end_date?: string | null;
 };
 type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
@@ -1907,7 +1928,9 @@ function DojoTab() {
     const [{ data: h }, { data: logs }] = await Promise.all([
       supabase
         .from("habits")
-        .select("id,title,category,xp_reward,frequency_type,duration,target_per_period")
+        .select(
+          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date",
+        )
         .order("created_at", { ascending: false }),
       supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
     ]);
@@ -2012,6 +2035,16 @@ function DojoTab() {
     </div>
   );
 
+  const todayWeekday = weekdayCodeFromISO(today);
+  const visibleHabits = habits.filter((h) => {
+    if (h.end_date && today > h.end_date) return false;
+    if (h.recurrence_type === "interval") {
+      const days = Array.isArray(h.repeat_days) ? h.repeat_days : [];
+      if (days.length > 0 && !days.includes(todayWeekday)) return false;
+    }
+    return true;
+  });
+
   if (habits.length === 0)
     return (
       <>
@@ -2027,10 +2060,16 @@ function DojoTab() {
   return (
     <>
       {tzNotice}
+      {visibleHabits.length === 0 && (
+        <div className="mb-4 rounded-md border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+          Nenhum hábito programado para hoje ({todayWeekday}). Confira a aba de gerenciamento.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {habits.map((habit) => {
+        {visibleHabits.map((habit) => {
           const done = completedToday.has(habit.id);
           const isPending = pending === habit.id;
+          const isInterval = habit.recurrence_type === "interval";
           return (
             <Card
               key={habit.id}
@@ -2039,8 +2078,14 @@ function DojoTab() {
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base font-semibold leading-tight">
-                    {habit.title}
+                  <CardTitle className="flex items-center gap-1.5 text-base font-semibold leading-tight">
+                    {isInterval && (
+                      <Repeat
+                        className="h-3.5 w-3.5 shrink-0 text-primary"
+                        aria-label="Hábito intervalado"
+                      />
+                    )}
+                    <span>{habit.title}</span>
                   </CardTitle>
                   <Badge variant="secondary" className="shrink-0 gap-1">
                     <Zap className="h-3 w-3" /> 30
@@ -2049,6 +2094,12 @@ function DojoTab() {
                 {habit.category && (
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">
                     {habit.category}
+                  </p>
+                )}
+                {isInterval && Array.isArray(habit.repeat_days) && habit.repeat_days.length > 0 && (
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {habit.repeat_days.join(" · ")}
+                    {habit.end_date ? ` · até ${habit.end_date}` : ""}
                   </p>
                 )}
               </CardHeader>
@@ -4484,53 +4535,76 @@ function NewTodoModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+const DAY_TOGGLE_CLASS =
+  "data-[state=on]:bg-[#545B62] data-[state=on]:text-white dark:data-[state=on]:bg-emerald-600 dark:data-[state=on]:text-white";
+
+function computeEndDate(
+  recurrence: RecurrenceType,
+  manualEnd: string,
+  unit: DurationUnit,
+  value: number,
+): string | null {
+  if (recurrence === "continuous") return manualEnd ? manualEnd : null;
+  if (!value || value <= 0) return null;
+  const base = new Date();
+  const end = unit === "weeks" ? addWeeks(base, value) : addMonths(base, value);
+  return format(end, "yyyy-MM-dd");
+}
+
 function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // XP fixo (+30) gerenciado pelo backend
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [frequency, setFrequency] = useState<FrequencyType>("diario");
-  const [duration, setDuration] = useState("4");
-  const [target, setTarget] = useState("1");
+  const [recurrence, setRecurrence] = useState<RecurrenceType>("continuous");
+  const [manualEnd, setManualEnd] = useState("");
+  const [repeatDays, setRepeatDays] = useState<string[]>([]);
+  const [durationValue, setDurationValue] = useState("4");
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>("weeks");
   const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setTitle("");
+    setCategory("");
+    setRecurrence("continuous");
+    setManualEnd("");
+    setRepeatDays([]);
+    setDurationValue("4");
+    setDurationUnit("weeks");
+  }
 
   async function submit() {
     if (!title.trim()) return;
+    if (recurrence === "interval" && repeatDays.length === 0) {
+      toast.error("Selecione ao menos um dia da semana");
+      return;
+    }
     setSaving(true);
     const user_id = await getCurrentUserId();
+    const end_date = computeEndDate(
+      recurrence,
+      manualEnd,
+      durationUnit,
+      Number(durationValue) || 0,
+    );
     const { error } = await supabase.from("habits").insert({
       title: title.trim(),
       category: category.trim() || null,
-      frequency_type: frequency,
-      duration: Number(duration) || 0,
-      target_per_period: Number(target) || 1,
+      frequency_type: recurrence === "interval" ? "semanal" : "diario",
+      recurrence_type: recurrence,
+      repeat_days: recurrence === "interval" ? repeatDays : null,
+      duration_value: recurrence === "interval" ? Number(durationValue) || null : null,
+      duration_unit: recurrence === "interval" ? durationUnit : null,
+      end_date,
       user_id,
     });
     setSaving(false);
     if (error) {
-      toast.error("Falha ao criar hábito", { description: "Tente novamente mais tarde." });
+      toast.error("Falha ao criar hábito", { description: error.message });
       return;
     }
     toast.success("Hábito criado");
-    setTitle("");
-    setCategory("");
-    setFrequency("diario");
-    setDuration("4");
-    setTarget("1");
+    reset();
     onClose();
   }
-
-  const durationLabel =
-    frequency === "diario"
-      ? "Duração (dias)"
-      : frequency === "semanal"
-        ? "Duração (semanas)"
-        : "Duração (meses)";
-  const targetLabel =
-    frequency === "diario"
-      ? "Check-ins / dia"
-      : frequency === "semanal"
-        ? "Dias / semana"
-        : "Dias / mês";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -4560,44 +4634,79 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="h-freq">Tipo</Label>
-            <select
-              id="h-freq"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as FrequencyType)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            <Label>Tipo de Execução</Label>
+            <ToggleGroup
+              type="single"
+              value={recurrence}
+              onValueChange={(v) => v && setRecurrence(v as RecurrenceType)}
+              className="justify-start"
             >
-              <option value="diario">Diário</option>
-              <option value="semanal">Semanal</option>
-              <option value="mensal">Mensal</option>
-            </select>
+              <ToggleGroupItem value="continuous" className={DAY_TOGGLE_CLASS}>
+                Contínua
+              </ToggleGroupItem>
+              <ToggleGroupItem value="interval" className={DAY_TOGGLE_CLASS}>
+                <Repeat className="mr-1 h-3.5 w-3.5" /> Intervalada
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
+
+          {recurrence === "continuous" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="h-end">Data de expiração (opcional)</Label>
+              <Input
+                id="h-end"
+                type="date"
+                value={manualEnd}
+                onChange={(e) => setManualEnd(e.target.value)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>Dias da semana</Label>
+                <ToggleGroup
+                  type="multiple"
+                  value={repeatDays}
+                  onValueChange={(v) => setRepeatDays(v)}
+                  className="flex-wrap justify-start"
+                >
+                  {WEEKDAYS.map((d) => (
+                    <ToggleGroupItem key={d.code} value={d.code} className={DAY_TOGGLE_CLASS}>
+                      {d.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="h-dv">Duração do ciclo</Label>
+                  <Input
+                    id="h-dv"
+                    type="number"
+                    min={1}
+                    value={durationValue}
+                    onChange={(e) => setDurationValue(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="h-du">Unidade</Label>
+                  <select
+                    id="h-du"
+                    value={durationUnit}
+                    onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  >
+                    <option value="weeks">Semanas</option>
+                    <option value="months">Meses</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
             XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span>{" "}
             (gerenciado pelo sistema)
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="h-dur">{durationLabel}</Label>
-              <Input
-                id="h-dur"
-                type="number"
-                min={0}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="h-target">{targetLabel}</Label>
-              <Input
-                id="h-target"
-                type="number"
-                min={1}
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              />
-            </div>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
@@ -4611,6 +4720,7 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
     </Dialog>
   );
 }
+
 
 function EditHabitModal({
   habit,
