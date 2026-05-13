@@ -4535,53 +4535,76 @@ function NewTodoModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+const DAY_TOGGLE_CLASS =
+  "data-[state=on]:bg-[#545B62] data-[state=on]:text-white dark:data-[state=on]:bg-emerald-600 dark:data-[state=on]:text-white";
+
+function computeEndDate(
+  recurrence: RecurrenceType,
+  manualEnd: string,
+  unit: DurationUnit,
+  value: number,
+): string | null {
+  if (recurrence === "continuous") return manualEnd ? manualEnd : null;
+  if (!value || value <= 0) return null;
+  const base = new Date();
+  const end = unit === "weeks" ? addWeeks(base, value) : addMonths(base, value);
+  return format(end, "yyyy-MM-dd");
+}
+
 function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // XP fixo (+30) gerenciado pelo backend
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [frequency, setFrequency] = useState<FrequencyType>("diario");
-  const [duration, setDuration] = useState("4");
-  const [target, setTarget] = useState("1");
+  const [recurrence, setRecurrence] = useState<RecurrenceType>("continuous");
+  const [manualEnd, setManualEnd] = useState("");
+  const [repeatDays, setRepeatDays] = useState<string[]>([]);
+  const [durationValue, setDurationValue] = useState("4");
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>("weeks");
   const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setTitle("");
+    setCategory("");
+    setRecurrence("continuous");
+    setManualEnd("");
+    setRepeatDays([]);
+    setDurationValue("4");
+    setDurationUnit("weeks");
+  }
 
   async function submit() {
     if (!title.trim()) return;
+    if (recurrence === "interval" && repeatDays.length === 0) {
+      toast.error("Selecione ao menos um dia da semana");
+      return;
+    }
     setSaving(true);
     const user_id = await getCurrentUserId();
+    const end_date = computeEndDate(
+      recurrence,
+      manualEnd,
+      durationUnit,
+      Number(durationValue) || 0,
+    );
     const { error } = await supabase.from("habits").insert({
       title: title.trim(),
       category: category.trim() || null,
-      frequency_type: frequency,
-      duration: Number(duration) || 0,
-      target_per_period: Number(target) || 1,
+      frequency_type: recurrence === "interval" ? "semanal" : "diario",
+      recurrence_type: recurrence,
+      repeat_days: recurrence === "interval" ? repeatDays : null,
+      duration_value: recurrence === "interval" ? Number(durationValue) || null : null,
+      duration_unit: recurrence === "interval" ? durationUnit : null,
+      end_date,
       user_id,
     });
     setSaving(false);
     if (error) {
-      toast.error("Falha ao criar hábito", { description: "Tente novamente mais tarde." });
+      toast.error("Falha ao criar hábito", { description: error.message });
       return;
     }
     toast.success("Hábito criado");
-    setTitle("");
-    setCategory("");
-    setFrequency("diario");
-    setDuration("4");
-    setTarget("1");
+    reset();
     onClose();
   }
-
-  const durationLabel =
-    frequency === "diario"
-      ? "Duração (dias)"
-      : frequency === "semanal"
-        ? "Duração (semanas)"
-        : "Duração (meses)";
-  const targetLabel =
-    frequency === "diario"
-      ? "Check-ins / dia"
-      : frequency === "semanal"
-        ? "Dias / semana"
-        : "Dias / mês";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -4611,44 +4634,79 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="h-freq">Tipo</Label>
-            <select
-              id="h-freq"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as FrequencyType)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            <Label>Tipo de Execução</Label>
+            <ToggleGroup
+              type="single"
+              value={recurrence}
+              onValueChange={(v) => v && setRecurrence(v as RecurrenceType)}
+              className="justify-start"
             >
-              <option value="diario">Diário</option>
-              <option value="semanal">Semanal</option>
-              <option value="mensal">Mensal</option>
-            </select>
+              <ToggleGroupItem value="continuous" className={DAY_TOGGLE_CLASS}>
+                Contínua
+              </ToggleGroupItem>
+              <ToggleGroupItem value="interval" className={DAY_TOGGLE_CLASS}>
+                <Repeat className="mr-1 h-3.5 w-3.5" /> Intervalada
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
+
+          {recurrence === "continuous" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="h-end">Data de expiração (opcional)</Label>
+              <Input
+                id="h-end"
+                type="date"
+                value={manualEnd}
+                onChange={(e) => setManualEnd(e.target.value)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>Dias da semana</Label>
+                <ToggleGroup
+                  type="multiple"
+                  value={repeatDays}
+                  onValueChange={(v) => setRepeatDays(v)}
+                  className="flex-wrap justify-start"
+                >
+                  {WEEKDAYS.map((d) => (
+                    <ToggleGroupItem key={d.code} value={d.code} className={DAY_TOGGLE_CLASS}>
+                      {d.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="h-dv">Duração do ciclo</Label>
+                  <Input
+                    id="h-dv"
+                    type="number"
+                    min={1}
+                    value={durationValue}
+                    onChange={(e) => setDurationValue(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="h-du">Unidade</Label>
+                  <select
+                    id="h-du"
+                    value={durationUnit}
+                    onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  >
+                    <option value="weeks">Semanas</option>
+                    <option value="months">Meses</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
             XP fixo por check-in: <span className="font-mono text-foreground">+30 XP</span>{" "}
             (gerenciado pelo sistema)
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="h-dur">{durationLabel}</Label>
-              <Input
-                id="h-dur"
-                type="number"
-                min={0}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="h-target">{targetLabel}</Label>
-              <Input
-                id="h-target"
-                type="number"
-                min={1}
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              />
-            </div>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
@@ -4662,6 +4720,7 @@ function NewHabitModal({ open, onClose }: { open: boolean; onClose: () => void }
     </Dialog>
   );
 }
+
 
 function EditHabitModal({
   habit,
