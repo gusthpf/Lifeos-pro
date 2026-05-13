@@ -1928,7 +1928,9 @@ function DojoTab() {
     const [{ data: h }, { data: logs }] = await Promise.all([
       supabase
         .from("habits")
-        .select("id,title,category,xp_reward,frequency_type,duration,target_per_period")
+        .select(
+          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date",
+        )
         .order("created_at", { ascending: false }),
       supabase.from("habit_logs").select("habit_id").eq("completed_at", today),
     ]);
