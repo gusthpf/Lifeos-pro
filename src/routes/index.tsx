@@ -2035,6 +2035,16 @@ function DojoTab() {
     </div>
   );
 
+  const todayWeekday = weekdayCodeFromISO(today);
+  const visibleHabits = habits.filter((h) => {
+    if (h.end_date && today > h.end_date) return false;
+    if (h.recurrence_type === "interval") {
+      const days = Array.isArray(h.repeat_days) ? h.repeat_days : [];
+      if (days.length > 0 && !days.includes(todayWeekday)) return false;
+    }
+    return true;
+  });
+
   if (habits.length === 0)
     return (
       <>
@@ -2050,10 +2060,16 @@ function DojoTab() {
   return (
     <>
       {tzNotice}
+      {visibleHabits.length === 0 && (
+        <div className="mb-4 rounded-md border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+          Nenhum hábito programado para hoje ({todayWeekday}). Confira a aba de gerenciamento.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {habits.map((habit) => {
+        {visibleHabits.map((habit) => {
           const done = completedToday.has(habit.id);
           const isPending = pending === habit.id;
+          const isInterval = habit.recurrence_type === "interval";
           return (
             <Card
               key={habit.id}
@@ -2062,8 +2078,14 @@ function DojoTab() {
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base font-semibold leading-tight">
-                    {habit.title}
+                  <CardTitle className="flex items-center gap-1.5 text-base font-semibold leading-tight">
+                    {isInterval && (
+                      <Repeat
+                        className="h-3.5 w-3.5 shrink-0 text-primary"
+                        aria-label="Hábito intervalado"
+                      />
+                    )}
+                    <span>{habit.title}</span>
                   </CardTitle>
                   <Badge variant="secondary" className="shrink-0 gap-1">
                     <Zap className="h-3 w-3" /> 30
@@ -2072,6 +2094,12 @@ function DojoTab() {
                 {habit.category && (
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">
                     {habit.category}
+                  </p>
+                )}
+                {isInterval && Array.isArray(habit.repeat_days) && habit.repeat_days.length > 0 && (
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {habit.repeat_days.join(" · ")}
+                    {habit.end_date ? ` · até ${habit.end_date}` : ""}
                   </p>
                 )}
               </CardHeader>
