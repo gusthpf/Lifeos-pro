@@ -104,6 +104,21 @@ export const Route = createFileRoute("/")({
 });
 
 type FrequencyType = "diario" | "semanal" | "mensal";
+type RecurrenceType = "continuous" | "interval";
+type DurationUnit = "weeks" | "months";
+const WEEKDAYS: { code: string; label: string; jsDay: number }[] = [
+  { code: "Dom", label: "Dom", jsDay: 0 },
+  { code: "Seg", label: "Seg", jsDay: 1 },
+  { code: "Ter", label: "Ter", jsDay: 2 },
+  { code: "Qua", label: "Qua", jsDay: 3 },
+  { code: "Qui", label: "Qui", jsDay: 4 },
+  { code: "Sex", label: "Sex", jsDay: 5 },
+  { code: "Sáb", label: "Sáb", jsDay: 6 },
+];
+function weekdayCodeFromISO(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  return WEEKDAYS[d.getDay()].code;
+}
 type Habit = {
   id: string;
   title: string;
@@ -112,6 +127,11 @@ type Habit = {
   frequency_type: string | null;
   duration: number | null;
   target_per_period: number | null;
+  recurrence_type?: string | null;
+  repeat_days?: string[] | null;
+  duration_value?: number | null;
+  duration_unit?: string | null;
+  end_date?: string | null;
 };
 type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
