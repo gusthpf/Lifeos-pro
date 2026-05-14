@@ -408,22 +408,34 @@ export function useTodayAppointmentsAlert() {
       const dd = String(nowZ.getDate()).padStart(2, "0");
       const dayStart = fromZonedTime(`${yyyy}-${mm}-${dd}T00:00`, SALVADOR_TZ);
       const dayEnd = fromZonedTime(`${yyyy}-${mm}-${dd}T23:59`, SALVADOR_TZ);
-      const { data } = await supabase
-        .from("appointments")
-        .select("id,title,start_time,completed_at" as any)
-        .is("completed_at", null)
-        .gte("start_time", dayStart.toISOString())
-        .lte("start_time", dayEnd.toISOString())
-        .order("start_time", { ascending: true });
-      if (cancelled || !data || data.length === 0) return;
-      const list = data
-        .map((a: any) => {
-          const z = toZonedTime(new Date(a.start_time), SALVADOR_TZ);
-          return `${format(z, "HH:mm")} — ${a.title}`;
-        })
-        .join("\n");
-      toast("⚠️ Compromissos de Hoje", {
-        description: list,
+      const todayISO = `${yyyy}-${mm}-${dd}`;
+      const [apptRes, todoRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("id,title,start_time,completed_at" as any)
+          .is("completed_at", null)
+          .gte("start_time", dayStart.toISOString())
+          .lte("start_time", dayEnd.toISOString())
+          .order("start_time", { ascending: true }),
+        supabase
+          .from("todo_list")
+          .select("id,title,priority,is_completed,scheduled_date" as any)
+          .eq("is_scheduled", true as any)
+          .eq("scheduled_date", todayISO as any)
+          .eq("is_completed", false as any),
+      ]);
+      if (cancelled) return;
+      const lines: string[] = [];
+      for (const a of (apptRes.data ?? []) as any[]) {
+        const z = toZonedTime(new Date(a.start_time), SALVADOR_TZ);
+        lines.push(`${format(z, "HH:mm")} — ${a.title}`);
+      }
+      for (const t of (todoRes.data ?? []) as any[]) {
+        lines.push(`📋 ${t.title}${t.priority ? ` (${t.priority})` : ""}`);
+      }
+      if (lines.length === 0) return;
+      toast("⚠️ Agenda de Hoje", {
+        description: lines.join("\n"),
         duration: 10000,
       });
     })();
