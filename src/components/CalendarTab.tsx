@@ -50,6 +50,8 @@ type CalEvent = {
   start: Date;
   end: Date;
   completed: boolean;
+  kind: "appointment" | "todo";
+  todoId?: string;
 };
 
 function toLocalInput(d: Date): string {
@@ -75,15 +77,22 @@ export function CalendarTab() {
   const [deleting, setDeleting] = useState(false);
 
   async function load() {
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("id,title,description,start_time,end_time,completed_at" as any)
-      .order("start_time", { ascending: true });
-    if (error) {
+    const [apptRes, todoRes] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id,title,description,start_time,end_time,completed_at" as any)
+        .order("start_time", { ascending: true }),
+      supabase
+        .from("todo_list")
+        .select("id,title,priority,is_completed,scheduled_date" as any)
+        .eq("is_scheduled", true as any)
+        .not("scheduled_date", "is", null),
+    ]);
+    if (apptRes.error) {
       toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
       return;
     }
-    const parsed: CalEvent[] = ((data ?? []) as any as Appointment[]).map((a) => {
+    const apptEvents: CalEvent[] = ((apptRes.data ?? []) as any as Appointment[]).map((a) => {
       const start = new Date(a.start_time);
       const end = a.end_time ? new Date(a.end_time) : new Date(start.getTime() + 60 * 60 * 1000);
       return {
@@ -93,9 +102,24 @@ export function CalendarTab() {
         start,
         end,
         completed: !!a.completed_at,
+        kind: "appointment" as const,
       };
     });
-    setEvents(parsed);
+    const todoEvents: CalEvent[] = ((todoRes.data ?? []) as any[]).map((t) => {
+      const start = fromZonedTime(`${t.scheduled_date}T00:00`, SALVADOR_TZ);
+      const end = fromZonedTime(`${t.scheduled_date}T23:59`, SALVADOR_TZ);
+      return {
+        id: `todo-${t.id}`,
+        todoId: t.id,
+        title: `📋 ${t.title}`,
+        description: t.priority ? `Prioridade: ${t.priority}` : null,
+        start,
+        end,
+        completed: !!t.is_completed,
+        kind: "todo" as const,
+      };
+    });
+    setEvents([...apptEvents, ...todoEvents]);
   }
 
   useEffect(() => {
@@ -235,19 +259,39 @@ export function CalendarTab() {
             startAccessor="start"
             endAccessor="end"
             onSelectSlot={(slot) => openCreate(slot.start as Date, slot.end as Date)}
-            onSelectEvent={(ev) => openEdit(ev as CalEvent)}
-            eventPropGetter={(ev) =>
-              (ev as CalEvent).completed
-                ? {
-                    style: {
-                      backgroundColor: "hsl(var(--muted))",
-                      color: "hsl(var(--muted-foreground))",
-                      textDecoration: "line-through",
-                      opacity: 0.7,
-                    },
-                  }
-                : {}
-            }
+            onSelectEvent={(ev) => {
+              const e = ev as CalEvent;
+              if (e.kind === "todo") {
+                toast(e.title, {
+                  description: `${e.description ?? ""}${e.completed ? " · Concluída" : " · Pendente"}\nGerencie em Comando › To-do.`,
+                });
+                return;
+              }
+              openEdit(e);
+            }}
+            eventPropGetter={(ev) => {
+              const e = ev as CalEvent;
+              if (e.completed) {
+                return {
+                  style: {
+                    backgroundColor: "hsl(var(--muted))",
+                    color: "hsl(var(--muted-foreground))",
+                    textDecoration: "line-through",
+                    opacity: 0.7,
+                  },
+                };
+              }
+              if (e.kind === "todo") {
+                return {
+                  style: {
+                    backgroundColor: "hsl(var(--secondary))",
+                    color: "hsl(var(--secondary-foreground))",
+                    border: "1px dashed hsl(var(--border))",
+                  },
+                };
+              }
+              return {};
+            }}
             style={{ height: "100%" }}
           />
         </div>
@@ -364,22 +408,34 @@ export function useTodayAppointmentsAlert() {
       const dd = String(nowZ.getDate()).padStart(2, "0");
       const dayStart = fromZonedTime(`${yyyy}-${mm}-${dd}T00:00`, SALVADOR_TZ);
       const dayEnd = fromZonedTime(`${yyyy}-${mm}-${dd}T23:59`, SALVADOR_TZ);
-      const { data } = await supabase
-        .from("appointments")
-        .select("id,title,start_time,completed_at" as any)
-        .is("completed_at", null)
-        .gte("start_time", dayStart.toISOString())
-        .lte("start_time", dayEnd.toISOString())
-        .order("start_time", { ascending: true });
-      if (cancelled || !data || data.length === 0) return;
-      const list = data
-        .map((a: any) => {
-          const z = toZonedTime(new Date(a.start_time), SALVADOR_TZ);
-          return `${format(z, "HH:mm")} — ${a.title}`;
-        })
-        .join("\n");
-      toast("⚠️ Compromissos de Hoje", {
-        description: list,
+      const todayISO = `${yyyy}-${mm}-${dd}`;
+      const [apptRes, todoRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("id,title,start_time,completed_at" as any)
+          .is("completed_at", null)
+          .gte("start_time", dayStart.toISOString())
+          .lte("start_time", dayEnd.toISOString())
+          .order("start_time", { ascending: true }),
+        supabase
+          .from("todo_list")
+          .select("id,title,priority,is_completed,scheduled_date" as any)
+          .eq("is_scheduled", true as any)
+          .eq("scheduled_date", todayISO as any)
+          .eq("is_completed", false as any),
+      ]);
+      if (cancelled) return;
+      const lines: string[] = [];
+      for (const a of (apptRes.data ?? []) as any[]) {
+        const z = toZonedTime(new Date(a.start_time), SALVADOR_TZ);
+        lines.push(`${format(z, "HH:mm")} — ${a.title}`);
+      }
+      for (const t of (todoRes.data ?? []) as any[]) {
+        lines.push(`📋 ${t.title}${t.priority ? ` (${t.priority})` : ""}`);
+      }
+      if (lines.length === 0) return;
+      toast("⚠️ Agenda de Hoje", {
+        description: lines.join("\n"),
         duration: 10000,
       });
     })();
