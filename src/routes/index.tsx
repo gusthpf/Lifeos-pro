@@ -2035,16 +2035,6 @@ function DojoTab() {
     </div>
   );
 
-  const todayWeekday = weekdayCodeFromISO(today);
-  const visibleHabits = habits.filter((h) => {
-    if (h.end_date && today > h.end_date) return false;
-    if (h.recurrence_type === "interval") {
-      const days = Array.isArray(h.repeat_days) ? h.repeat_days : [];
-      if (days.length > 0 && !days.includes(todayWeekday)) return false;
-    }
-    return true;
-  });
-
   if (habits.length === 0)
     return (
       <>
@@ -2060,107 +2050,16 @@ function DojoTab() {
   return (
     <>
       {tzNotice}
-      {visibleHabits.length === 0 && (
-        <div className="mb-4 rounded-md border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground">
-          Nenhum hábito programado para hoje ({todayWeekday}). Confira a aba de gerenciamento.
-        </div>
-      )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleHabits.map((habit) => {
-          const done = completedToday.has(habit.id);
-          const isPending = pending === habit.id;
-          const isInterval = habit.recurrence_type === "interval";
-          return (
-            <Card
-              key={habit.id}
-              className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
-              style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="flex items-center gap-1.5 text-base font-semibold leading-tight">
-                    {isInterval && (
-                      <Repeat
-                        className="h-3.5 w-3.5 shrink-0 text-primary"
-                        aria-label="Hábito intervalado"
-                      />
-                    )}
-                    <span>{habit.title}</span>
-                  </CardTitle>
-                  <Badge variant="secondary" className="shrink-0 gap-1">
-                    <Zap className="h-3 w-3" /> 30
-                  </Badge>
-                </div>
-                {habit.category && (
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {habit.category}
-                  </p>
-                )}
-                {isInterval && Array.isArray(habit.repeat_days) && habit.repeat_days.length > 0 && (
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {habit.repeat_days.join(" · ")}
-                    {habit.end_date ? ` · até ${habit.end_date}` : ""}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => checkIn(habit)}
-                    disabled={done || isPending}
-                    className="flex-1"
-                    style={
-                      done
-                        ? {
-                            background: "var(--gradient-primary)",
-                            color: "var(--primary-foreground)",
-                          }
-                        : undefined
-                    }
-                  >
-                    {isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : done ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" /> Concluído hoje
-                      </>
-                    ) : (
-                      <>
-                        <Flame className="mr-2 h-4 w-4" /> Check-in
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setEditing(habit)}
-                    aria-label={`Editar ${habit.title}`}
-                    title="Editar hábito"
-                    className="shrink-0"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => deleteHabit(habit)}
-                    disabled={deleting === habit.id}
-                    aria-label={`Excluir ${habit.title}`}
-                    title="Excluir hábito"
-                    className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    {deleting === habit.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <DojoDualView
+        habits={habits}
+        completedToday={completedToday}
+        pending={pending}
+        deleting={deleting}
+        today={today}
+        onCheckIn={checkIn}
+        onEdit={setEditing}
+        onDelete={deleteHabit}
+      />
       <EditHabitModal
         habit={editing}
         open={editing !== null}
@@ -2170,6 +2069,330 @@ function DojoTab() {
         }
       />
     </>
+  );
+}
+
+/* ============ DOJO — Dual View (Geral / Foco) ============ */
+const WEEK_ORDER: { code: string; label: string; full: string }[] = [
+  { code: "Seg", label: "Seg", full: "Segunda" },
+  { code: "Ter", label: "Ter", full: "Terça" },
+  { code: "Qua", label: "Qua", full: "Quarta" },
+  { code: "Qui", label: "Qui", full: "Quinta" },
+  { code: "Sex", label: "Sex", full: "Sexta" },
+  { code: "Sáb", label: "Sáb", full: "Sábado" },
+  { code: "Dom", label: "Dom", full: "Domingo" },
+];
+
+function habitMatchesDay(h: Habit, dayCode: string, todayISO: string): boolean {
+  if (h.end_date && todayISO > h.end_date) return false;
+  if (h.recurrence_type === "interval") {
+    const days = Array.isArray(h.repeat_days) ? h.repeat_days : [];
+    if (days.length === 0) return false;
+    return days.includes(dayCode);
+  }
+  // continuous → todos os dias
+  return true;
+}
+
+type DojoView = "geral" | "foco";
+
+function DojoDualView({
+  habits,
+  completedToday,
+  pending,
+  deleting,
+  today,
+  onCheckIn,
+  onEdit,
+  onDelete,
+}: {
+  habits: Habit[];
+  completedToday: Set<string>;
+  pending: string | null;
+  deleting: string | null;
+  today: string;
+  onCheckIn: (h: Habit) => void;
+  onEdit: (h: Habit) => void;
+  onDelete: (h: Habit) => void;
+}) {
+  const todayCode = weekdayCodeFromISO(today);
+  const [view, setView] = useState<DojoView>("geral");
+  const [focusDay, setFocusDay] = useState<string>(todayCode);
+
+  const goToDay = (code: string) => {
+    setFocusDay(code);
+    setView("foco");
+  };
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-border bg-card/60 p-1 backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setView("geral")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              view === "geral"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Geral (Semana)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFocusDay(todayCode);
+              setView("foco");
+            }}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              view === "foco"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Foco (Hoje)
+          </button>
+        </div>
+        {view === "foco" && (
+          <div className="text-xs text-muted-foreground">
+            Visualizando:{" "}
+            <span className="font-mono text-foreground">
+              {WEEK_ORDER.find((d) => d.code === focusDay)?.full ?? focusDay}
+            </span>
+            {focusDay === todayCode && (
+              <Badge variant="secondary" className="ml-2">Hoje</Badge>
+            )}
+          </div>
+        )}
+      </div>
+
+      {view === "geral" ? (
+        <div
+          key="geral"
+          className="grid animate-fade-in grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7"
+        >
+          {WEEK_ORDER.map((day) => {
+            const dayHabits = habits.filter((h) => habitMatchesDay(h, day.code, today));
+            const isToday = day.code === todayCode;
+            return (
+              <div
+                key={day.code}
+                className={cn(
+                  "flex min-h-[160px] flex-col rounded-lg border bg-card/40 p-2 backdrop-blur transition-all",
+                  isToday
+                    ? "border-primary/60 shadow-[var(--shadow-glow)]"
+                    : "border-border hover:border-primary/40",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => goToDay(day.code)}
+                  className="mb-2 flex items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wider text-primary hover:bg-primary/10"
+                >
+                  <span>{day.label}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {dayHabits.length}
+                  </span>
+                </button>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  {dayHabits.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-border/60 p-3 text-center opacity-50">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Status: Idle
+                      </span>
+                    </div>
+                  ) : (
+                    dayHabits.map((h) => {
+                      const done = isToday && completedToday.has(h.id);
+                      return (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onClick={() => goToDay(day.code)}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-md border bg-background/60 px-2 py-1.5 text-left text-xs transition-all hover:border-primary/60 hover:bg-primary/5",
+                            done ? "border-primary/60" : "border-border",
+                          )}
+                          title={h.title}
+                        >
+                          {h.recurrence_type === "interval" ? (
+                            <Repeat className="h-3 w-3 shrink-0 text-primary" />
+                          ) : (
+                            <Flame className="h-3 w-3 shrink-0 text-accent" />
+                          )}
+                          <span className="truncate">{h.title}</span>
+                          {done && <Check className="ml-auto h-3 w-3 shrink-0 text-primary" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <DojoFocusColumn
+          key={`foco-${focusDay}`}
+          dayCode={focusDay}
+          isToday={focusDay === todayCode}
+          habits={habits.filter((h) => habitMatchesDay(h, focusDay, today))}
+          completedToday={completedToday}
+          pending={pending}
+          deleting={deleting}
+          onCheckIn={onCheckIn}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      )}
+    </>
+  );
+}
+
+function DojoFocusColumn({
+  dayCode,
+  isToday,
+  habits,
+  completedToday,
+  pending,
+  deleting,
+  onCheckIn,
+  onEdit,
+  onDelete,
+}: {
+  dayCode: string;
+  isToday: boolean;
+  habits: Habit[];
+  completedToday: Set<string>;
+  pending: string | null;
+  deleting: string | null;
+  onCheckIn: (h: Habit) => void;
+  onEdit: (h: Habit) => void;
+  onDelete: (h: Habit) => void;
+}) {
+  const dayLabel = WEEK_ORDER.find((d) => d.code === dayCode)?.full ?? dayCode;
+  if (habits.length === 0) {
+    return (
+      <div className="mx-auto max-w-xl animate-fade-in">
+        <div className="rounded-lg border border-dashed border-primary/40 bg-card/40 p-8 text-center backdrop-blur">
+          <Swords className="mx-auto mb-3 h-10 w-10 text-primary opacity-70" />
+          <p className="font-mono text-sm uppercase tracking-wider text-primary">
+            Sistema Estável
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {isToday
+              ? "Nenhuma manutenção pendente para hoje. Aproveite para descansar ou adicionar um novo hábito."
+              : `Nenhum hábito programado para ${dayLabel}.`}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto grid max-w-2xl animate-fade-in gap-4">
+      {habits.map((habit) => {
+        const done = isToday && completedToday.has(habit.id);
+        const isPending = pending === habit.id;
+        const isInterval = habit.recurrence_type === "interval";
+        return (
+          <Card
+            key={habit.id}
+            className="relative overflow-hidden border-border bg-card/70 backdrop-blur transition-all hover:border-primary/50"
+            style={{ boxShadow: done ? "var(--shadow-glow)" : "var(--shadow-card)" }}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="flex items-center gap-1.5 text-base font-semibold leading-tight">
+                  {isInterval && (
+                    <Repeat
+                      className="h-3.5 w-3.5 shrink-0 text-primary"
+                      aria-label="Hábito intervalado"
+                    />
+                  )}
+                  <span>{habit.title}</span>
+                </CardTitle>
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  <Zap className="h-3 w-3" /> 30
+                </Badge>
+              </div>
+              {habit.category && (
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {habit.category}
+                </p>
+              )}
+              {isInterval &&
+                Array.isArray(habit.repeat_days) &&
+                habit.repeat_days.length > 0 && (
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {habit.repeat_days.join(" · ")}
+                    {habit.end_date ? ` · até ${habit.end_date}` : ""}
+                  </p>
+                )}
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => onCheckIn(habit)}
+                  disabled={!isToday || done || isPending}
+                  className="h-11 flex-1 text-base"
+                  title={!isToday ? "Check-in disponível apenas no dia atual" : undefined}
+                  style={
+                    done
+                      ? {
+                          background: "var(--gradient-primary)",
+                          color: "var(--primary-foreground)",
+                        }
+                      : undefined
+                  }
+                >
+                  {isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : done ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Concluído hoje
+                    </>
+                  ) : (
+                    <>
+                      <Flame className="mr-2 h-4 w-4" />
+                      {isToday ? "Check-in" : "Visualização"}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onEdit(habit)}
+                  aria-label={`Editar ${habit.title}`}
+                  title="Editar hábito"
+                  className="h-11 w-11 shrink-0"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onDelete(habit)}
+                  disabled={deleting === habit.id}
+                  aria-label={`Excluir ${habit.title}`}
+                  title="Excluir hábito"
+                  className="h-11 w-11 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  {deleting === habit.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 
