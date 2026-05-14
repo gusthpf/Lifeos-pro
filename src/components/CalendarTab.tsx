@@ -50,6 +50,8 @@ type CalEvent = {
   start: Date;
   end: Date;
   completed: boolean;
+  kind: "appointment" | "todo";
+  todoId?: string;
 };
 
 function toLocalInput(d: Date): string {
