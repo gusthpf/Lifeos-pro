@@ -259,19 +259,39 @@ export function CalendarTab() {
             startAccessor="start"
             endAccessor="end"
             onSelectSlot={(slot) => openCreate(slot.start as Date, slot.end as Date)}
-            onSelectEvent={(ev) => openEdit(ev as CalEvent)}
-            eventPropGetter={(ev) =>
-              (ev as CalEvent).completed
-                ? {
-                    style: {
-                      backgroundColor: "hsl(var(--muted))",
-                      color: "hsl(var(--muted-foreground))",
-                      textDecoration: "line-through",
-                      opacity: 0.7,
-                    },
-                  }
-                : {}
-            }
+            onSelectEvent={(ev) => {
+              const e = ev as CalEvent;
+              if (e.kind === "todo") {
+                toast(e.title, {
+                  description: `${e.description ?? ""}${e.completed ? " · Concluída" : " · Pendente"}\nGerencie em Comando › To-do.`,
+                });
+                return;
+              }
+              openEdit(e);
+            }}
+            eventPropGetter={(ev) => {
+              const e = ev as CalEvent;
+              if (e.completed) {
+                return {
+                  style: {
+                    backgroundColor: "hsl(var(--muted))",
+                    color: "hsl(var(--muted-foreground))",
+                    textDecoration: "line-through",
+                    opacity: 0.7,
+                  },
+                };
+              }
+              if (e.kind === "todo") {
+                return {
+                  style: {
+                    backgroundColor: "hsl(var(--secondary))",
+                    color: "hsl(var(--secondary-foreground))",
+                    border: "1px dashed hsl(var(--border))",
+                  },
+                };
+              }
+              return {};
+            }}
             style={{ height: "100%" }}
           />
         </div>
