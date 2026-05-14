@@ -77,15 +77,22 @@ export function CalendarTab() {
   const [deleting, setDeleting] = useState(false);
 
   async function load() {
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("id,title,description,start_time,end_time,completed_at" as any)
-      .order("start_time", { ascending: true });
-    if (error) {
+    const [apptRes, todoRes] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id,title,description,start_time,end_time,completed_at" as any)
+        .order("start_time", { ascending: true }),
+      supabase
+        .from("todo_list")
+        .select("id,title,priority,is_completed,scheduled_date" as any)
+        .eq("is_scheduled", true as any)
+        .not("scheduled_date", "is", null),
+    ]);
+    if (apptRes.error) {
       toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
       return;
     }
-    const parsed: CalEvent[] = ((data ?? []) as any as Appointment[]).map((a) => {
+    const apptEvents: CalEvent[] = ((apptRes.data ?? []) as any as Appointment[]).map((a) => {
       const start = new Date(a.start_time);
       const end = a.end_time ? new Date(a.end_time) : new Date(start.getTime() + 60 * 60 * 1000);
       return {
@@ -95,9 +102,24 @@ export function CalendarTab() {
         start,
         end,
         completed: !!a.completed_at,
+        kind: "appointment" as const,
       };
     });
-    setEvents(parsed);
+    const todoEvents: CalEvent[] = ((todoRes.data ?? []) as any[]).map((t) => {
+      const start = fromZonedTime(`${t.scheduled_date}T00:00`, SALVADOR_TZ);
+      const end = fromZonedTime(`${t.scheduled_date}T23:59`, SALVADOR_TZ);
+      return {
+        id: `todo-${t.id}`,
+        todoId: t.id,
+        title: `📋 ${t.title}`,
+        description: t.priority ? `Prioridade: ${t.priority}` : null,
+        start,
+        end,
+        completed: !!t.is_completed,
+        kind: "todo" as const,
+      };
+    });
+    setEvents([...apptEvents, ...todoEvents]);
   }
 
   useEffect(() => {
