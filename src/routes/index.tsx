@@ -2890,6 +2890,7 @@ type TodoItem = {
   completed_at: string | null;
   is_scheduled: boolean | null;
   scheduled_date: string | null;
+  sort_order?: number | null;
 };
 
 const PRIORITY_META: Record<
