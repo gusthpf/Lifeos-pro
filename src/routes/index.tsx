@@ -3116,7 +3116,7 @@ function TodoTab() {
         scheduled_date: editScheduled && editDate ? dateToISO(editDate) : null,
       })
       .eq("id", editing.id)
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .single();
     setSavingEdit(false);
     if (error) {
@@ -3131,7 +3131,7 @@ function TodoTab() {
   async function load() {
     const { data, error } = await supabase
       .from("todo_list")
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Falha ao carregar tarefas", { description: "Tente novamente mais tarde." });
@@ -3183,7 +3183,7 @@ function TodoTab() {
       .from("todo_list")
       .update({ is_completed: next })
       .eq("id", item.id)
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .single();
     setBusy(null);
     if (error) {
