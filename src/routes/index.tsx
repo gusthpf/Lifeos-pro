@@ -121,6 +121,21 @@ function weekdayCodeFromISO(iso: string): string {
   const d = new Date(iso + "T12:00:00");
   return WEEKDAYS[d.getDay()].code;
 }
+/** Returns ISO dates for Sun..Sat of the week containing the given ISO date. */
+function getWeekISODates(todayISO: string): Record<string, string> {
+  const d = new Date(todayISO + "T12:00:00");
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - dow);
+  const out: Record<string, string> = {};
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(sunday);
+    day.setDate(sunday.getDate() + i);
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    out[WEEKDAYS[i].code] = iso;
+  }
+  return out;
+}
 type Habit = {
   id: string;
   title: string;
