@@ -60,6 +60,7 @@ import {
   AlertCircle,
   Copy,
   MessageSquarePlus,
+  Settings,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
