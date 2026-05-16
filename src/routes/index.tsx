@@ -72,6 +72,7 @@ import { CalendarIcon, ListFilter, Repeat } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { SystemStatus } from "@/components/SystemStatus";
+import { WeeklyKanban, KANBAN_WEEK, type KanbanItem } from "@/components/WeeklyKanban";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
