@@ -121,6 +121,7 @@ export type Database = {
           id: string
           recurrence_type: string | null
           repeat_days: string[] | null
+          sort_order: number | null
           target_per_period: number | null
           title: string
           updated_at: string | null
@@ -138,6 +139,7 @@ export type Database = {
           id?: string
           recurrence_type?: string | null
           repeat_days?: string[] | null
+          sort_order?: number | null
           target_per_period?: number | null
           title: string
           updated_at?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           id?: string
           recurrence_type?: string | null
           repeat_days?: string[] | null
+          sort_order?: number | null
           target_per_period?: number | null
           title?: string
           updated_at?: string | null
@@ -455,6 +458,7 @@ export type Database = {
           is_scheduled: boolean | null
           priority: Database["public"]["Enums"]["priority_level"] | null
           scheduled_date: string | null
+          sort_order: number | null
           title: string
           updated_at: string | null
           user_id: string | null
@@ -467,6 +471,7 @@ export type Database = {
           is_scheduled?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
           scheduled_date?: string | null
+          sort_order?: number | null
           title: string
           updated_at?: string | null
           user_id?: string | null
@@ -479,9 +484,31 @@ export type Database = {
           is_scheduled?: boolean | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
           scheduled_date?: string | null
+          sort_order?: number | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          updated_at: string | null
+          user_id: string | null
+          workout_days: string[] | null
+        }
+        Insert: {
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          workout_days?: string[] | null
+        }
+        Update: {
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          workout_days?: string[] | null
         }
         Relationships: []
       }
