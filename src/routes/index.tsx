@@ -3435,6 +3435,37 @@ function TodoTab() {
           </div>
         ))}
 
+      {/* KANBAN SEMANAL */}
+      {view === "kanban" && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Arraste para reordenar (mesma coluna) ou reagendar (entre colunas).
+          </p>
+          <WeeklyKanban
+            columns={kanbanColumns}
+            todayCode={todayCode}
+            onReorder={persistTodoReorder}
+            onMove={handleTodoMove}
+            emptyHint="Status: Vazio"
+            renderCard={(item) => {
+              const t = item.raw as TodoItem;
+              const meta = PRIORITY_META[(t.priority ?? "Média") as Priority];
+              return (
+                <div
+                  className="cursor-grab select-none rounded-md border bg-card/80 p-2 text-xs shadow-sm active:cursor-grabbing"
+                  style={{ borderColor: meta.ring }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span aria-hidden>{meta.emoji}</span>
+                    <span className="truncate font-medium">{t.title}</span>
+                  </div>
+                </div>
+              );
+            }}
+          />
+        </div>
+      )}
+
       {/* Archive trigger */}
       <div className="flex justify-end">
         <Button
