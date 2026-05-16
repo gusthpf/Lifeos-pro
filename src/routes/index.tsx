@@ -2906,7 +2906,7 @@ const PRIORITY_META: Record<
 const PRIORITY_ORDER: Priority[] = ["Alta", "Média", "Baixa"];
 
 /* ============ AGENDA HELPERS (shared between Todo & Strategy) ============ */
-type ViewMode = "lista" | "agenda";
+type ViewMode = "lista" | "agenda" | "kanban";
 
 function ViewModeSelector({
   value,
@@ -2918,6 +2918,7 @@ function ViewModeSelector({
   const opts: { v: ViewMode; label: string; icon: React.ReactNode }[] = [
     { v: "lista", label: "Lista Geral", icon: <ListFilter className="h-3.5 w-3.5" /> },
     { v: "agenda", label: "Agenda", icon: <CalendarDays className="h-3.5 w-3.5" /> },
+    { v: "kanban", label: "Kanban Semanal", icon: <ListTodo className="h-3.5 w-3.5" /> },
   ];
   return (
     <div
