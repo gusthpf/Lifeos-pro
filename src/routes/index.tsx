@@ -1577,7 +1577,65 @@ function NocPanel() {
   );
 }
 
+function WorkoutScheduleDialog({
+  open,
+  onOpenChange,
+  value,
+  saving,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  value: string[];
+  saving: boolean;
+  onSave: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(value);
+  useEffect(() => {
+    if (open) setDraft(value);
+  }, [open, value]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Agenda de Treino</DialogTitle>
+          <DialogDescription>
+            Selecione os dias da semana em que você pretende treinar.
+            Dias fora da agenda exibem status REPOUSO.
+          </DialogDescription>
+        </DialogHeader>
+        <ToggleGroup
+          type="multiple"
+          value={draft}
+          onValueChange={(v) => setDraft(v as string[])}
+          className="flex flex-wrap justify-center gap-1.5"
+        >
+          {WEEKDAYS.map((d) => (
+            <ToggleGroupItem
+              key={d.code}
+              value={d.code}
+              variant="outline"
+              className="data-[state=on]:bg-[color:var(--workout-day-active,theme(colors.primary.DEFAULT))] data-[state=on]:text-primary-foreground data-[state=on]:border-transparent"
+            >
+              {d.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onSave(draft)} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ============ NOC AUDIT LOG (v1.9) ============ */
+
 type WorkoutRow = {
   id: string;
   user_id: string | null;
