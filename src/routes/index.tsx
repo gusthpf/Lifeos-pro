@@ -1314,8 +1314,11 @@ function NocPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const isOnline = status === "online";
-  const isOffline = status === "offline";
+  // Effective status incorporates schedule: rest days never raise an alert.
+  const offSchedule = !isScheduledToday;
+  const hasLogToday = logCount > 0;
+  const isOnline = status !== "loading" && (hasLogToday || offSchedule);
+  const isOffline = status !== "loading" && !hasLogToday && !offSchedule;
   const accentVar = isOnline ? "var(--noc-online)" : "var(--noc-offline)";
   const accentFgVar = isOnline ? "var(--noc-online-fg)" : "var(--noc-offline-fg)";
 
@@ -1361,7 +1364,19 @@ function NocPanel() {
           />
           NOC // DISCIPLINE MONITOR
         </span>
-        <span className="opacity-80">TZ: America/Bahia · {today}</span>
+        <span className="flex items-center gap-2 opacity-80">
+          <span>TZ: America/Bahia · {today}</span>
+          <button
+            type="button"
+            onClick={() => setScheduleOpen(true)}
+            disabled={!user}
+            title="Configurar dias de treino"
+            aria-label="Configurar dias de treino"
+            className="rounded p-1 transition hover:bg-current/10 hover:opacity-100 disabled:opacity-30"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+        </span>
       </div>
 
       <div className="px-4 py-4">
@@ -1370,7 +1385,7 @@ function NocPanel() {
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>$ probing habit_logs...</span>
           </div>
-        ) : isOnline ? (
+        ) : hasLogToday ? (
           <div className="space-y-1" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
@@ -1381,11 +1396,33 @@ function NocPanel() {
               last_probe={lastCheck}
             </div>
           </div>
+        ) : offSchedule ? (
+          <div className="space-y-1" style={{ color: accentFgVar }}>
+            <div className="text-xs opacity-80">$ check --date {today}</div>
+            <div className="text-lg font-bold tracking-wider sm:text-xl">
+              ◌ OFF-SCHEDULE / REPOUSO
+            </div>
+            <div className="text-xs opacity-80">
+              Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
+            </div>
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setModalOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Dumbbell className="h-4 w-4" />
+                Registrar Treino Extra
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-2" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
+              ✖ STATUS: ALERTA — TREINO PENDENTE
             </div>
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
@@ -1409,6 +1446,14 @@ function NocPanel() {
           </div>
         )}
       </div>
+
+      <WorkoutScheduleDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        value={schedule}
+        saving={savingSchedule}
+        onSave={saveSchedule}
+      />
 
       <Dialog
         open={modalOpen}
