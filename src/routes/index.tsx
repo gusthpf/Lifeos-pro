@@ -3231,6 +3231,68 @@ function TodoTab() {
 
   const agendaGroups = groupByAgenda(agendaItems, today);
 
+  // ---------- Kanban (current week) ----------
+  const weekDates = useMemo(() => getWeekISODates(today), [today]);
+  const todayCode = weekdayCodeFromISO(today);
+  const kanbanColumns = useMemo(() => {
+    return KANBAN_WEEK.map((d) => {
+      const iso = weekDates[d.code];
+      const inDay = agendaItems
+        .filter((it) => !it.is_completed && it.scheduled_date === iso)
+        .sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+            (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+        )
+        .map((it) => ({ id: it.id, raw: it }) as KanbanItem);
+      return { code: d.code, label: d.label, full: d.full, items: inDay };
+    });
+  }, [agendaItems, weekDates]);
+
+  async function persistTodoReorder(colCode: string, orderedIds: string[]) {
+    const iso = weekDates[colCode];
+    const rows = orderedIds.map((id, idx) => ({ id, sort_order: idx, scheduled_date: iso, is_scheduled: true }));
+    setItems((curr) =>
+      (curr ?? []).map((it) => {
+        const idx = orderedIds.indexOf(it.id);
+        return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
+      }),
+    );
+    const { error } = await supabase.from("todo_list").upsert(rows, { onConflict: "id" });
+    if (error) {
+      toast.error("Falha ao reordenar", { description: error.message });
+      load();
+    }
+  }
+
+  async function handleTodoMove(itemId: string, _from: string, toCol: string, insertIndex: number) {
+    const iso = weekDates[toCol];
+    const target = kanbanColumns.find((c) => c.code === toCol);
+    if (!target) return;
+    const existing = target.items.map((i) => i.id).filter((id) => id !== itemId);
+    const next = [...existing];
+    next.splice(insertIndex, 0, itemId);
+    const rows = next.map((id, idx) => ({
+      id,
+      sort_order: idx,
+      scheduled_date: iso,
+      is_scheduled: true,
+    }));
+    setItems((curr) =>
+      (curr ?? []).map((it) => {
+        const idx = next.indexOf(it.id);
+        return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
+      }),
+    );
+    const { error } = await supabase.from("todo_list").upsert(rows, { onConflict: "id" });
+    if (error) {
+      toast.error("Falha ao reagendar", { description: error.message });
+      load();
+      return;
+    }
+    toast.success(`Reagendada para ${toCol} (${iso})`);
+  }
+
   if (items === null) return <SkeletonGrid />;
 
   return (
