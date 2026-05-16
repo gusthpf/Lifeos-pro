@@ -1139,6 +1139,8 @@ function NocDailyXpAuditLog() {
   );
 }
 
+const DEFAULT_WORKOUT_SCHEDULE = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
@@ -1153,6 +1155,43 @@ function NocPanel() {
   const [trainingIntensity, setTrainingIntensity] = useState<string>("Moderada");
   const [trainingNotes, setTrainingNotes] = useState("");
   const today = useBahiaToday();
+  const [schedule, setSchedule] = useState<string[]>(DEFAULT_WORKOUT_SCHEDULE);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const todayCode = weekdayCodeFromISO(today);
+  const isScheduledToday = schedule.includes(todayCode);
+
+  async function loadSchedule() {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_preferences")
+      .select("workout_schedule")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const arr = (data as any)?.workout_schedule;
+    if (Array.isArray(arr) && arr.length > 0) setSchedule(arr);
+  }
+  useEffect(() => {
+    loadSchedule();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function saveSchedule(next: string[]) {
+    if (!user) return;
+    setSavingSchedule(true);
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert({ user_id: user.id, workout_schedule: next }, { onConflict: "user_id" });
+    setSavingSchedule(false);
+    if (error) {
+      toast.error("Falha ao salvar agenda", { description: error.message });
+      return;
+    }
+    setSchedule(next);
+    toast.success("Agenda de treino atualizada");
+    setScheduleOpen(false);
+  }
 
   async function probe() {
     setStatus("loading");
