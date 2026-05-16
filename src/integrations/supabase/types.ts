@@ -495,20 +495,23 @@ export type Database = {
         Row: {
           id: string
           updated_at: string | null
-          user_id: string | null
+          user_id: string
           workout_days: string[] | null
+          workout_schedule: string[]
         }
         Insert: {
           id?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
           workout_days?: string[] | null
+          workout_schedule?: string[]
         }
         Update: {
           id?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
           workout_days?: string[] | null
+          workout_schedule?: string[]
         }
         Relationships: []
       }
