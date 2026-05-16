@@ -60,6 +60,7 @@ import {
   AlertCircle,
   Copy,
   MessageSquarePlus,
+  Settings,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -71,6 +72,7 @@ import { CalendarIcon, ListFilter, Repeat } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { SystemStatus } from "@/components/SystemStatus";
+import { WeeklyKanban, KANBAN_WEEK, type KanbanItem } from "@/components/WeeklyKanban";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
@@ -118,6 +120,21 @@ const WEEKDAYS: { code: string; label: string; jsDay: number }[] = [
 function weekdayCodeFromISO(iso: string): string {
   const d = new Date(iso + "T12:00:00");
   return WEEKDAYS[d.getDay()].code;
+}
+/** Returns ISO dates for Sun..Sat of the week containing the given ISO date. */
+function getWeekISODates(todayISO: string): Record<string, string> {
+  const d = new Date(todayISO + "T12:00:00");
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - dow);
+  const out: Record<string, string> = {};
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(sunday);
+    day.setDate(sunday.getDate() + i);
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    out[WEEKDAYS[i].code] = iso;
+  }
+  return out;
 }
 type Habit = {
   id: string;
@@ -1139,6 +1156,8 @@ function NocDailyXpAuditLog() {
   );
 }
 
+const DEFAULT_WORKOUT_SCHEDULE = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 function NocPanel() {
   const { user } = AuthCtx.useAuth();
   const [status, setStatus] = useState<"loading" | "online" | "offline">("loading");
@@ -1153,6 +1172,43 @@ function NocPanel() {
   const [trainingIntensity, setTrainingIntensity] = useState<string>("Moderada");
   const [trainingNotes, setTrainingNotes] = useState("");
   const today = useBahiaToday();
+  const [schedule, setSchedule] = useState<string[]>(DEFAULT_WORKOUT_SCHEDULE);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const todayCode = weekdayCodeFromISO(today);
+  const isScheduledToday = schedule.includes(todayCode);
+
+  async function loadSchedule() {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_preferences")
+      .select("workout_schedule")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const arr = (data as any)?.workout_schedule;
+    if (Array.isArray(arr) && arr.length > 0) setSchedule(arr);
+  }
+  useEffect(() => {
+    loadSchedule();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function saveSchedule(next: string[]) {
+    if (!user) return;
+    setSavingSchedule(true);
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert({ user_id: user.id, workout_schedule: next }, { onConflict: "user_id" });
+    setSavingSchedule(false);
+    if (error) {
+      toast.error("Falha ao salvar agenda", { description: error.message });
+      return;
+    }
+    setSchedule(next);
+    toast.success("Agenda de treino atualizada");
+    setScheduleOpen(false);
+  }
 
   async function probe() {
     setStatus("loading");
@@ -1274,8 +1330,11 @@ function NocPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const isOnline = status === "online";
-  const isOffline = status === "offline";
+  // Effective status incorporates schedule: rest days never raise an alert.
+  const offSchedule = !isScheduledToday;
+  const hasLogToday = logCount > 0;
+  const isOnline = status !== "loading" && (hasLogToday || offSchedule);
+  const isOffline = status !== "loading" && !hasLogToday && !offSchedule;
   const accentVar = isOnline ? "var(--noc-online)" : "var(--noc-offline)";
   const accentFgVar = isOnline ? "var(--noc-online-fg)" : "var(--noc-offline-fg)";
 
@@ -1321,7 +1380,19 @@ function NocPanel() {
           />
           NOC // DISCIPLINE MONITOR
         </span>
-        <span className="opacity-80">TZ: America/Bahia · {today}</span>
+        <span className="flex items-center gap-2 opacity-80">
+          <span>TZ: America/Bahia · {today}</span>
+          <button
+            type="button"
+            onClick={() => setScheduleOpen(true)}
+            disabled={!user}
+            title="Configurar dias de treino"
+            aria-label="Configurar dias de treino"
+            className="rounded p-1 transition hover:bg-current/10 hover:opacity-100 disabled:opacity-30"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+        </span>
       </div>
 
       <div className="px-4 py-4">
@@ -1330,7 +1401,7 @@ function NocPanel() {
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>$ probing habit_logs...</span>
           </div>
-        ) : isOnline ? (
+        ) : hasLogToday ? (
           <div className="space-y-1" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
@@ -1341,11 +1412,33 @@ function NocPanel() {
               last_probe={lastCheck}
             </div>
           </div>
+        ) : offSchedule ? (
+          <div className="space-y-1" style={{ color: accentFgVar }}>
+            <div className="text-xs opacity-80">$ check --date {today}</div>
+            <div className="text-lg font-bold tracking-wider sm:text-xl">
+              ◌ OFF-SCHEDULE / REPOUSO
+            </div>
+            <div className="text-xs opacity-80">
+              Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
+            </div>
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setModalOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Dumbbell className="h-4 w-4" />
+                Registrar Treino Extra
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-2" style={{ color: accentFgVar }}>
             <div className="text-xs opacity-80">$ check --date {today}</div>
             <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ✖ CRITICAL: UPTIME COMPROMETIDO. TREINO PENDENTE
+              ✖ STATUS: ALERTA — TREINO PENDENTE
             </div>
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
@@ -1369,6 +1462,14 @@ function NocPanel() {
           </div>
         )}
       </div>
+
+      <WorkoutScheduleDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        value={schedule}
+        saving={savingSchedule}
+        onSave={saveSchedule}
+      />
 
       <Dialog
         open={modalOpen}
@@ -1492,7 +1593,65 @@ function NocPanel() {
   );
 }
 
+function WorkoutScheduleDialog({
+  open,
+  onOpenChange,
+  value,
+  saving,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  value: string[];
+  saving: boolean;
+  onSave: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(value);
+  useEffect(() => {
+    if (open) setDraft(value);
+  }, [open, value]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Agenda de Treino</DialogTitle>
+          <DialogDescription>
+            Selecione os dias da semana em que você pretende treinar.
+            Dias fora da agenda exibem status REPOUSO.
+          </DialogDescription>
+        </DialogHeader>
+        <ToggleGroup
+          type="multiple"
+          value={draft}
+          onValueChange={(v) => setDraft(v as string[])}
+          className="flex flex-wrap justify-center gap-1.5"
+        >
+          {WEEKDAYS.map((d) => (
+            <ToggleGroupItem
+              key={d.code}
+              value={d.code}
+              variant="outline"
+              className="data-[state=on]:bg-[color:var(--workout-day-active,theme(colors.primary.DEFAULT))] data-[state=on]:text-primary-foreground data-[state=on]:border-transparent"
+            >
+              {d.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onSave(draft)} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ============ NOC AUDIT LOG (v1.9) ============ */
+
 type WorkoutRow = {
   id: string;
   user_id: string | null;
@@ -2731,6 +2890,7 @@ type TodoItem = {
   completed_at: string | null;
   is_scheduled: boolean | null;
   scheduled_date: string | null;
+  sort_order?: number | null;
 };
 
 const PRIORITY_META: Record<
@@ -2763,7 +2923,7 @@ const PRIORITY_META: Record<
 const PRIORITY_ORDER: Priority[] = ["Alta", "Média", "Baixa"];
 
 /* ============ AGENDA HELPERS (shared between Todo & Strategy) ============ */
-type ViewMode = "lista" | "agenda";
+type ViewMode = "lista" | "agenda" | "kanban";
 
 function ViewModeSelector({
   value,
@@ -2775,6 +2935,7 @@ function ViewModeSelector({
   const opts: { v: ViewMode; label: string; icon: React.ReactNode }[] = [
     { v: "lista", label: "Lista Geral", icon: <ListFilter className="h-3.5 w-3.5" /> },
     { v: "agenda", label: "Agenda", icon: <CalendarDays className="h-3.5 w-3.5" /> },
+    { v: "kanban", label: "Kanban Semanal", icon: <ListTodo className="h-3.5 w-3.5" /> },
   ];
   return (
     <div
@@ -2956,7 +3117,7 @@ function TodoTab() {
         scheduled_date: editScheduled && editDate ? dateToISO(editDate) : null,
       })
       .eq("id", editing.id)
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .single();
     setSavingEdit(false);
     if (error) {
@@ -2971,7 +3132,7 @@ function TodoTab() {
   async function load() {
     const { data, error } = await supabase
       .from("todo_list")
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Falha ao carregar tarefas", { description: "Tente novamente mais tarde." });
@@ -3023,7 +3184,7 @@ function TodoTab() {
       .from("todo_list")
       .update({ is_completed: next })
       .eq("id", item.id)
-      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date")
+      .select("id,title,priority,is_completed,created_at,completed_at,is_scheduled,scheduled_date,sort_order")
       .single();
     setBusy(null);
     if (error) {
@@ -3069,6 +3230,77 @@ function TodoTab() {
   })).filter((g) => g.items.length > 0);
 
   const agendaGroups = groupByAgenda(agendaItems, today);
+
+  // ---------- Kanban (current week) ----------
+  const weekDates = useMemo(() => getWeekISODates(today), [today]);
+  const todayCode = weekdayCodeFromISO(today);
+  const kanbanColumns = useMemo(() => {
+    return KANBAN_WEEK.map((d) => {
+      const iso = weekDates[d.code];
+      const inDay = agendaItems
+        .filter((it) => !it.is_completed && it.scheduled_date === iso)
+        .sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+            (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+        )
+        .map((it) => ({ id: it.id, raw: it }) as KanbanItem);
+      return { code: d.code, label: d.label, full: d.full, items: inDay };
+    });
+  }, [agendaItems, weekDates]);
+
+  async function persistTodoReorder(colCode: string, orderedIds: string[]) {
+    const iso = weekDates[colCode];
+    setItems((curr) =>
+      (curr ?? []).map((it) => {
+        const idx = orderedIds.indexOf(it.id);
+        return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
+      }),
+    );
+    const results = await Promise.all(
+      orderedIds.map((id, idx) =>
+        supabase
+          .from("todo_list")
+          .update({ sort_order: idx, scheduled_date: iso, is_scheduled: true })
+          .eq("id", id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("Falha ao reordenar", { description: err.message });
+      load();
+    }
+  }
+
+  async function handleTodoMove(itemId: string, _from: string, toCol: string, insertIndex: number) {
+    const iso = weekDates[toCol];
+    const target = kanbanColumns.find((c) => c.code === toCol);
+    if (!target) return;
+    const existing = target.items.map((i) => i.id).filter((id) => id !== itemId);
+    const next = [...existing];
+    next.splice(insertIndex, 0, itemId);
+    setItems((curr) =>
+      (curr ?? []).map((it) => {
+        const idx = next.indexOf(it.id);
+        return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
+      }),
+    );
+    const results = await Promise.all(
+      next.map((id, idx) =>
+        supabase
+          .from("todo_list")
+          .update({ sort_order: idx, scheduled_date: iso, is_scheduled: true })
+          .eq("id", id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("Falha ao reagendar", { description: err.message });
+      load();
+      return;
+    }
+    toast.success(`Reagendada para ${toCol} (${iso})`);
+  }
 
   if (items === null) return <SkeletonGrid />;
 
@@ -3202,6 +3434,37 @@ function TodoTab() {
             ))}
           </div>
         ))}
+
+      {/* KANBAN SEMANAL */}
+      {view === "kanban" && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Arraste para reordenar (mesma coluna) ou reagendar (entre colunas).
+          </p>
+          <WeeklyKanban
+            columns={kanbanColumns}
+            todayCode={todayCode}
+            onReorder={persistTodoReorder}
+            onMove={handleTodoMove}
+            emptyHint="Status: Vazio"
+            renderCard={(item) => {
+              const t = item.raw as TodoItem;
+              const meta = PRIORITY_META[(t.priority ?? "Média") as Priority];
+              return (
+                <div
+                  className="cursor-grab select-none rounded-md border bg-card/80 p-2 text-xs shadow-sm active:cursor-grabbing"
+                  style={{ borderColor: meta.ring }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span aria-hidden>{meta.emoji}</span>
+                    <span className="truncate font-medium">{t.title}</span>
+                  </div>
+                </div>
+              );
+            }}
+          />
+        </div>
+      )}
 
       {/* Archive trigger */}
       <div className="flex justify-end">
