@@ -3251,16 +3251,23 @@ function TodoTab() {
 
   async function persistTodoReorder(colCode: string, orderedIds: string[]) {
     const iso = weekDates[colCode];
-    const rows = orderedIds.map((id, idx) => ({ id, sort_order: idx, scheduled_date: iso, is_scheduled: true }));
     setItems((curr) =>
       (curr ?? []).map((it) => {
         const idx = orderedIds.indexOf(it.id);
         return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
       }),
     );
-    const { error } = await supabase.from("todo_list").upsert(rows, { onConflict: "id" });
-    if (error) {
-      toast.error("Falha ao reordenar", { description: error.message });
+    const results = await Promise.all(
+      orderedIds.map((id, idx) =>
+        supabase
+          .from("todo_list")
+          .update({ sort_order: idx, scheduled_date: iso, is_scheduled: true })
+          .eq("id", id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("Falha ao reordenar", { description: err.message });
       load();
     }
   }
@@ -3272,21 +3279,23 @@ function TodoTab() {
     const existing = target.items.map((i) => i.id).filter((id) => id !== itemId);
     const next = [...existing];
     next.splice(insertIndex, 0, itemId);
-    const rows = next.map((id, idx) => ({
-      id,
-      sort_order: idx,
-      scheduled_date: iso,
-      is_scheduled: true,
-    }));
     setItems((curr) =>
       (curr ?? []).map((it) => {
         const idx = next.indexOf(it.id);
         return idx >= 0 ? { ...it, sort_order: idx, scheduled_date: iso, is_scheduled: true } : it;
       }),
     );
-    const { error } = await supabase.from("todo_list").upsert(rows, { onConflict: "id" });
-    if (error) {
-      toast.error("Falha ao reagendar", { description: error.message });
+    const results = await Promise.all(
+      next.map((id, idx) =>
+        supabase
+          .from("todo_list")
+          .update({ sort_order: idx, scheduled_date: iso, is_scheduled: true })
+          .eq("id", id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("Falha ao reagendar", { description: err.message });
       load();
       return;
     }
