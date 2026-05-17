@@ -170,6 +170,10 @@
   --audit-fg-subtle: oklch(0.62 0.02 260);
   --audit-accent: oklch(0.55 0.17 155);
   --audit-accent-soft: oklch(0.55 0.17 155 / 0.12);
+
+  /* NOC palette aliases (Graphite for light, Emerald for dark) */
+  --noc-graphite: #545B62;
+  --noc-emerald: oklch(0.78 0.18 155);
 }
 
 /* AI Life Coach — neon-on-obsidian aesthetic (dark mode) */
