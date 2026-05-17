@@ -2271,6 +2271,8 @@ function DojoTab() {
         onCheckIn={checkIn}
         onEdit={setEditing}
         onDelete={deleteHabit}
+        onReorderHabits={reorderHabits}
+        onMoveHabitDay={moveHabitDay}
       />
       <EditHabitModal
         habit={editing}
