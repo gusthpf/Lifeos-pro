@@ -2406,8 +2406,12 @@ function DojoDualView({
           <WeeklyKanban
             columns={kanbanColumns}
             todayCode={todayCode}
-            onReorder={(_col, ids) => onReorderHabits(ids)}
-            onMove={(id, from, to) => onMoveHabitDay(id, from, to)}
+            onReorder={(_col, ids) =>
+              onReorderHabits(ids.map((s) => s.split("__")[0]))
+            }
+            onMove={(id, from, to) =>
+              onMoveHabitDay(id.split("__")[0], from, to)
+            }
             emptyHint="Status: Vazio"
             renderCard={(item) => {
               const h = item.raw as Habit;
