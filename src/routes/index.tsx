@@ -2346,7 +2346,9 @@ function DojoDualView({
             (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
             a.title.localeCompare(b.title),
         )
-        .map((h) => ({ id: h.id, raw: h }) as KanbanItem);
+        // Composite id por dia: garante que cada instância do hábito numa
+        // coluna seja arrastada de forma independente (sem puxar os outros dias).
+        .map((h) => ({ id: `${h.id}__${d.code}`, raw: h }) as KanbanItem);
       return { code: d.code, label: d.label, full: d.full, items: inDay };
     });
   }, [habits, today]);
