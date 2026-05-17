@@ -2184,6 +2184,57 @@ function DojoTab() {
     toast.success("Hábito removido", { description: `"${habit.title}" excluído do dojo.` });
   }
 
+  async function reorderHabits(orderedIds: string[]) {
+    setHabits((curr) => {
+      if (!curr) return curr;
+      const idx = new Map(orderedIds.map((id, i) => [id, i] as const));
+      return curr.map((h) => (idx.has(h.id) ? { ...h, sort_order: idx.get(h.id)! } : h));
+    });
+    const results = await Promise.all(
+      orderedIds.map((id, i) =>
+        supabase.from("habits").update({ sort_order: i }).eq("id", id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("Falha ao reordenar", { description: err.message });
+      void reload();
+    }
+  }
+
+  async function moveHabitDay(habitId: string, fromDay: string, toDay: string) {
+    const target = (habits ?? []).find((h) => h.id === habitId);
+    if (!target) return;
+    const current = Array.isArray(target.repeat_days) ? target.repeat_days : [];
+    let nextDays: string[];
+    if (target.recurrence_type === "interval") {
+      const set = new Set(current);
+      set.delete(fromDay);
+      set.add(toDay);
+      nextDays = Array.from(set);
+    } else {
+      // contínuo → vira intervalado apenas no dia destino
+      nextDays = [toDay];
+    }
+    setHabits((curr) =>
+      (curr ?? []).map((h) =>
+        h.id === habitId
+          ? { ...h, repeat_days: nextDays, recurrence_type: "interval" }
+          : h,
+      ),
+    );
+    const { error } = await supabase
+      .from("habits")
+      .update({ repeat_days: nextDays, recurrence_type: "interval" })
+      .eq("id", habitId);
+    if (error) {
+      toast.error("Falha ao reagendar hábito", { description: error.message });
+      void reload();
+      return;
+    }
+    toast.success(`Hábito movido para ${toDay}`);
+  }
+
   if (habits === null) return <SkeletonGrid />;
 
   const tzNotice = (
