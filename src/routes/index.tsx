@@ -149,6 +149,7 @@ type Habit = {
   duration_value?: number | null;
   duration_unit?: string | null;
   end_date?: string | null;
+  sort_order?: number | null;
 };
 type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
