@@ -2319,6 +2319,8 @@ function DojoDualView({
   onCheckIn,
   onEdit,
   onDelete,
+  onReorderHabits,
+  onMoveHabitDay,
 }: {
   habits: Habit[];
   completedToday: Set<string>;
@@ -2328,15 +2330,26 @@ function DojoDualView({
   onCheckIn: (h: Habit) => void;
   onEdit: (h: Habit) => void;
   onDelete: (h: Habit) => void;
+  onReorderHabits: (orderedIds: string[]) => void;
+  onMoveHabitDay: (habitId: string, fromDay: string, toDay: string) => void;
 }) {
   const todayCode = weekdayCodeFromISO(today);
   const [view, setView] = useState<DojoView>("geral");
   const [focusDay, setFocusDay] = useState<string>(todayCode);
 
-  const goToDay = (code: string) => {
-    setFocusDay(code);
-    setView("foco");
-  };
+  const kanbanColumns = useMemo(() => {
+    return KANBAN_WEEK.map((d) => {
+      const inDay = habits
+        .filter((h) => habitMatchesDay(h, d.code, today))
+        .sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+            a.title.localeCompare(b.title),
+        )
+        .map((h) => ({ id: h.id, raw: h }) as KanbanItem);
+      return { code: d.code, label: d.label, full: d.full, items: inDay };
+    });
+  }, [habits, today]);
 
   return (
     <>
@@ -2384,69 +2397,40 @@ function DojoDualView({
       </div>
 
       {view === "geral" ? (
-        <div
-          key="geral"
-          className="grid animate-fade-in grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7"
-        >
-          {WEEK_ORDER.map((day) => {
-            const dayHabits = habits.filter((h) => habitMatchesDay(h, day.code, today));
-            const isToday = day.code === todayCode;
-            return (
-              <div
-                key={day.code}
-                className={cn(
-                  "flex min-h-[160px] flex-col rounded-lg border bg-card/40 p-2 backdrop-blur transition-all",
-                  isToday
-                    ? "border-primary/60 shadow-[var(--shadow-glow)]"
-                    : "border-border hover:border-primary/40",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => goToDay(day.code)}
-                  className="mb-2 flex items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wider text-primary hover:bg-primary/10"
-                >
-                  <span>{day.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {dayHabits.length}
-                  </span>
-                </button>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  {dayHabits.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-border/60 p-3 text-center opacity-50">
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Status: Idle
-                      </span>
-                    </div>
-                  ) : (
-                    dayHabits.map((h) => {
-                      const done = isToday && completedToday.has(h.id);
-                      return (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onClick={() => goToDay(day.code)}
-                          className={cn(
-                            "flex items-center gap-1.5 rounded-md border bg-background/60 px-2 py-1.5 text-left text-xs transition-all hover:border-primary/60 hover:bg-primary/5",
-                            done ? "border-primary/60" : "border-border",
-                          )}
-                          title={h.title}
-                        >
-                          {h.recurrence_type === "interval" ? (
-                            <Repeat className="h-3 w-3 shrink-0 text-primary" />
-                          ) : (
-                            <Flame className="h-3 w-3 shrink-0 text-accent" />
-                          )}
-                          <span className="truncate">{h.title}</span>
-                          {done && <Check className="ml-auto h-3 w-3 shrink-0 text-primary" />}
-                        </button>
-                      );
-                    })
+        <div className="animate-fade-in space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Arraste um hábito para reordenar (mesma coluna) ou reagendá-lo para outro dia (entre colunas).
+          </p>
+          <WeeklyKanban
+            columns={kanbanColumns}
+            todayCode={todayCode}
+            onReorder={(_col, ids) => onReorderHabits(ids)}
+            onMove={(id, from, to) => onMoveHabitDay(id, from, to)}
+            emptyHint="Status: Vazio"
+            renderCard={(item) => {
+              const h = item.raw as Habit;
+              const done = completedToday.has(h.id);
+              return (
+                <div
+                  className={cn(
+                    "cursor-grab select-none rounded-md border bg-background/80 px-2 py-1.5 text-xs shadow-sm transition-all hover:border-primary/60 active:cursor-grabbing",
+                    done ? "border-primary/60" : "border-border",
                   )}
+                  title={h.title}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {h.recurrence_type === "interval" ? (
+                      <Repeat className="h-3 w-3 shrink-0 text-primary" />
+                    ) : (
+                      <Flame className="h-3 w-3 shrink-0 text-accent" />
+                    )}
+                    <span className="truncate font-medium">{h.title}</span>
+                    {done && <Check className="ml-auto h-3 w-3 shrink-0 text-primary" />}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            }}
+          />
         </div>
       ) : (
         <DojoFocusColumn
