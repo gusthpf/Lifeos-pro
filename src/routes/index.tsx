@@ -150,6 +150,7 @@ type Habit = {
   duration_unit?: string | null;
   end_date?: string | null;
   sort_order?: number | null;
+  day_sort_order?: Record<string, number> | null;
 };
 type GoalHorizon = "curto" | "medio" | "longo";
 type Goal = {
@@ -1383,16 +1384,6 @@ function NocPanel() {
         </span>
         <span className="flex items-center gap-2 opacity-80">
           <span>TZ: America/Bahia · {today}</span>
-          <button
-            type="button"
-            onClick={() => setScheduleOpen(true)}
-            disabled={!user}
-            title="Configurar dias de treino"
-            aria-label="Configurar dias de treino"
-            className="rounded p-1 transition hover:bg-current/10 hover:opacity-100 disabled:opacity-30"
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </button>
         </span>
       </div>
 
@@ -1422,7 +1413,7 @@ function NocPanel() {
             <div className="text-xs opacity-80">
               Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -1432,6 +1423,16 @@ function NocPanel() {
               >
                 <Dumbbell className="h-4 w-4" />
                 Registrar Treino Extra
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setScheduleOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar dia de treino
               </Button>
             </div>
           </div>
@@ -1444,7 +1445,7 @@ function NocPanel() {
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 onClick={() => setModalOpen(true)}
@@ -1458,6 +1459,16 @@ function NocPanel() {
               >
                 <Dumbbell className="h-4 w-4" />
                 Registrar Treino
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setScheduleOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar dia de treino
               </Button>
             </div>
           </div>
@@ -2089,7 +2100,7 @@ function DojoTab() {
       supabase
         .from("habits")
         .select(
-          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date,sort_order",
+          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date,sort_order,day_sort_order",
         )
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false }),
@@ -2184,16 +2195,25 @@ function DojoTab() {
     toast.success("Hábito removido", { description: `"${habit.title}" excluído do dojo.` });
   }
 
-  async function reorderHabits(orderedIds: string[]) {
+  async function reorderHabits(dayCode: string, orderedIds: string[]) {
+    const idx = new Map(orderedIds.map((id, i) => [id, i] as const));
+    // Otimismo: atualiza apenas o day_sort_order do dia clicado
+    let snapshot: Habit[] | null = null;
     setHabits((curr) => {
       if (!curr) return curr;
-      const idx = new Map(orderedIds.map((id, i) => [id, i] as const));
-      return curr.map((h) => (idx.has(h.id) ? { ...h, sort_order: idx.get(h.id)! } : h));
+      snapshot = curr;
+      return curr.map((h) => {
+        if (!idx.has(h.id)) return h;
+        const nextMap = { ...(h.day_sort_order ?? {}), [dayCode]: idx.get(h.id)! };
+        return { ...h, day_sort_order: nextMap };
+      });
     });
     const results = await Promise.all(
-      orderedIds.map((id, i) =>
-        supabase.from("habits").update({ sort_order: i }).eq("id", id),
-      ),
+      orderedIds.map((id, i) => {
+        const h = (snapshot ?? habits ?? []).find((x) => x.id === id);
+        const nextMap = { ...(h?.day_sort_order ?? {}), [dayCode]: i };
+        return supabase.from("habits").update({ day_sort_order: nextMap }).eq("id", id);
+      }),
     );
     const err = results.find((r) => r.error)?.error;
     if (err) {
@@ -2216,16 +2236,33 @@ function DojoTab() {
       // contínuo → vira intervalado apenas no dia destino
       nextDays = [toDay];
     }
+    // Limpa a chave do dia de origem no day_sort_order para não "vazar"
+    // a posição antiga e move o card para o final da coluna destino.
+    const cleanedMap: Record<string, number> = { ...(target.day_sort_order ?? {}) };
+    delete cleanedMap[fromDay];
+    const destLen = (habits ?? []).filter(
+      (h) => h.id !== habitId && habitMatchesDay(h, toDay, today),
+    ).length;
+    cleanedMap[toDay] = destLen;
     setHabits((curr) =>
       (curr ?? []).map((h) =>
         h.id === habitId
-          ? { ...h, repeat_days: nextDays, recurrence_type: "interval" }
+          ? {
+              ...h,
+              repeat_days: nextDays,
+              recurrence_type: "interval",
+              day_sort_order: cleanedMap,
+            }
           : h,
       ),
     );
     const { error } = await supabase
       .from("habits")
-      .update({ repeat_days: nextDays, recurrence_type: "interval" })
+      .update({
+        repeat_days: nextDays,
+        recurrence_type: "interval",
+        day_sort_order: cleanedMap,
+      })
       .eq("id", habitId);
     if (error) {
       toast.error("Falha ao reagendar hábito", { description: error.message });
@@ -2330,7 +2367,7 @@ function DojoDualView({
   onCheckIn: (h: Habit) => void;
   onEdit: (h: Habit) => void;
   onDelete: (h: Habit) => void;
-  onReorderHabits: (orderedIds: string[]) => void;
+  onReorderHabits: (dayCode: string, orderedIds: string[]) => void;
   onMoveHabitDay: (habitId: string, fromDay: string, toDay: string) => void;
 }) {
   const todayCode = weekdayCodeFromISO(today);
@@ -2341,11 +2378,17 @@ function DojoDualView({
     return KANBAN_WEEK.map((d) => {
       const inDay = habits
         .filter((h) => habitMatchesDay(h, d.code, today))
-        .sort(
-          (a, b) =>
+        .sort((a, b) => {
+          const ao = a.day_sort_order?.[d.code];
+          const bo = b.day_sort_order?.[d.code];
+          if (ao != null && bo != null) return ao - bo;
+          if (ao != null) return -1;
+          if (bo != null) return 1;
+          return (
             (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-            a.title.localeCompare(b.title),
-        )
+            a.title.localeCompare(b.title)
+          );
+        })
         // Composite id por dia: garante que cada instância do hábito numa
         // coluna seja arrastada de forma independente (sem puxar os outros dias).
         .map((h) => ({ id: `${h.id}__${d.code}`, raw: h }) as KanbanItem);
@@ -2406,8 +2449,8 @@ function DojoDualView({
           <WeeklyKanban
             columns={kanbanColumns}
             todayCode={todayCode}
-            onReorder={(_col, ids) =>
-              onReorderHabits(ids.map((s) => s.split("__")[0]))
+            onReorder={(col, ids) =>
+              onReorderHabits(col, ids.map((s) => s.split("__")[0]))
             }
             onMove={(id, from, to) =>
               onMoveHabitDay(id.split("__")[0], from, to)
