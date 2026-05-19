@@ -2357,7 +2357,7 @@ function DojoDualView({
   onCheckIn: (h: Habit) => void;
   onEdit: (h: Habit) => void;
   onDelete: (h: Habit) => void;
-  onReorderHabits: (orderedIds: string[]) => void;
+  onReorderHabits: (dayCode: string, orderedIds: string[]) => void;
   onMoveHabitDay: (habitId: string, fromDay: string, toDay: string) => void;
 }) {
   const todayCode = weekdayCodeFromISO(today);
