@@ -1460,6 +1460,16 @@ function NocPanel() {
                 <Dumbbell className="h-4 w-4" />
                 Registrar Treino
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setScheduleOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar dia de treino
+              </Button>
             </div>
           </div>
         )}
