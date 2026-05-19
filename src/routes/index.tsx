@@ -2185,16 +2185,25 @@ function DojoTab() {
     toast.success("Hábito removido", { description: `"${habit.title}" excluído do dojo.` });
   }
 
-  async function reorderHabits(orderedIds: string[]) {
+  async function reorderHabits(dayCode: string, orderedIds: string[]) {
+    const idx = new Map(orderedIds.map((id, i) => [id, i] as const));
+    // Otimismo: atualiza apenas o day_sort_order do dia clicado
+    let snapshot: Habit[] | null = null;
     setHabits((curr) => {
       if (!curr) return curr;
-      const idx = new Map(orderedIds.map((id, i) => [id, i] as const));
-      return curr.map((h) => (idx.has(h.id) ? { ...h, sort_order: idx.get(h.id)! } : h));
+      snapshot = curr;
+      return curr.map((h) => {
+        if (!idx.has(h.id)) return h;
+        const nextMap = { ...(h.day_sort_order ?? {}), [dayCode]: idx.get(h.id)! };
+        return { ...h, day_sort_order: nextMap };
+      });
     });
     const results = await Promise.all(
-      orderedIds.map((id, i) =>
-        supabase.from("habits").update({ sort_order: i }).eq("id", id),
-      ),
+      orderedIds.map((id, i) => {
+        const h = (snapshot ?? habits ?? []).find((x) => x.id === id);
+        const nextMap = { ...(h?.day_sort_order ?? {}), [dayCode]: i };
+        return supabase.from("habits").update({ day_sort_order: nextMap }).eq("id", id);
+      }),
     );
     const err = results.find((r) => r.error)?.error;
     if (err) {
@@ -2217,16 +2226,33 @@ function DojoTab() {
       // contínuo → vira intervalado apenas no dia destino
       nextDays = [toDay];
     }
+    // Limpa a chave do dia de origem no day_sort_order para não "vazar"
+    // a posição antiga e move o card para o final da coluna destino.
+    const cleanedMap: Record<string, number> = { ...(target.day_sort_order ?? {}) };
+    delete cleanedMap[fromDay];
+    const destLen = (habits ?? []).filter(
+      (h) => h.id !== habitId && habitMatchesDay(h, toDay, today),
+    ).length;
+    cleanedMap[toDay] = destLen;
     setHabits((curr) =>
       (curr ?? []).map((h) =>
         h.id === habitId
-          ? { ...h, repeat_days: nextDays, recurrence_type: "interval" }
+          ? {
+              ...h,
+              repeat_days: nextDays,
+              recurrence_type: "interval",
+              day_sort_order: cleanedMap,
+            }
           : h,
       ),
     );
     const { error } = await supabase
       .from("habits")
-      .update({ repeat_days: nextDays, recurrence_type: "interval" })
+      .update({
+        repeat_days: nextDays,
+        recurrence_type: "interval",
+        day_sort_order: cleanedMap,
+      })
       .eq("id", habitId);
     if (error) {
       toast.error("Falha ao reagendar hábito", { description: error.message });
