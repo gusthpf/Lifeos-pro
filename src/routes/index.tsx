@@ -2439,8 +2439,8 @@ function DojoDualView({
           <WeeklyKanban
             columns={kanbanColumns}
             todayCode={todayCode}
-            onReorder={(_col, ids) =>
-              onReorderHabits(ids.map((s) => s.split("__")[0]))
+            onReorder={(col, ids) =>
+              onReorderHabits(col, ids.map((s) => s.split("__")[0]))
             }
             onMove={(id, from, to) =>
               onMoveHabitDay(id.split("__")[0], from, to)
