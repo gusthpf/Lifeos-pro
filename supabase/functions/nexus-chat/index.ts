@@ -100,21 +100,34 @@ Deno.serve(async (req) => {
         content: String(m.content ?? "").slice(0, MAX_CONTENT_LEN),
       }));
 
+    // Always require authentication — prevents anonymous abuse of the paid AI gateway.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userData, error: userErr } = await sb.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let contextBlock = "";
     if (useContext) {
-      const authHeader = req.headers.get("Authorization") ?? "";
-      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (token) {
-        try {
-          const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            global: { headers: { Authorization: `Bearer ${token}` } },
-            auth: { persistSession: false, autoRefreshToken: false },
-          });
-          const { data: u } = await sb.auth.getUser();
-          if (u?.user) contextBlock = await buildUserContext(sb);
-        } catch (e) {
-          console.warn("context build failed", e);
-        }
+      try {
+        contextBlock = await buildUserContext(sb);
+      } catch (e) {
+        console.warn("context build failed", e);
       }
     }
 
