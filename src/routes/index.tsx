@@ -1384,16 +1384,6 @@ function NocPanel() {
         </span>
         <span className="flex items-center gap-2 opacity-80">
           <span>TZ: America/Bahia · {today}</span>
-          <button
-            type="button"
-            onClick={() => setScheduleOpen(true)}
-            disabled={!user}
-            title="Configurar dias de treino"
-            aria-label="Configurar dias de treino"
-            className="rounded p-1 transition hover:bg-current/10 hover:opacity-100 disabled:opacity-30"
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </button>
         </span>
       </div>
 
