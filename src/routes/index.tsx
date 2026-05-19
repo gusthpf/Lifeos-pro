@@ -2090,7 +2090,7 @@ function DojoTab() {
       supabase
         .from("habits")
         .select(
-          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date,sort_order",
+          "id,title,category,xp_reward,frequency_type,duration,target_per_period,recurrence_type,repeat_days,duration_value,duration_unit,end_date,sort_order,day_sort_order",
         )
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false }),
