@@ -113,6 +113,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          day_sort_order: Json
           duration: number | null
           duration_unit: string | null
           duration_value: number | null
@@ -131,6 +132,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string | null
+          day_sort_order?: Json
           duration?: number | null
           duration_unit?: string | null
           duration_value?: number | null
@@ -149,6 +151,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string | null
+          day_sort_order?: Json
           duration?: number | null
           duration_unit?: string | null
           duration_value?: number | null
