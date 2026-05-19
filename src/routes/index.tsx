@@ -1413,7 +1413,7 @@ function NocPanel() {
             <div className="text-xs opacity-80">
               Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -1423,6 +1423,16 @@ function NocPanel() {
               >
                 <Dumbbell className="h-4 w-4" />
                 Registrar Treino Extra
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setScheduleOpen(true)}
+                disabled={!user}
+                className="gap-2 font-mono uppercase tracking-wider"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar dia de treino
               </Button>
             </div>
           </div>
@@ -1435,7 +1445,7 @@ function NocPanel() {
             <div className="text-xs opacity-80">
               0 logs registrados · last_probe={lastCheck} · auto_retry=60s
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 onClick={() => setModalOpen(true)}
