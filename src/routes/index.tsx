@@ -2342,11 +2342,17 @@ function DojoDualView({
     return KANBAN_WEEK.map((d) => {
       const inDay = habits
         .filter((h) => habitMatchesDay(h, d.code, today))
-        .sort(
-          (a, b) =>
+        .sort((a, b) => {
+          const ao = a.day_sort_order?.[d.code];
+          const bo = b.day_sort_order?.[d.code];
+          if (ao != null && bo != null) return ao - bo;
+          if (ao != null) return -1;
+          if (bo != null) return 1;
+          return (
             (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-            a.title.localeCompare(b.title),
-        )
+            a.title.localeCompare(b.title)
+          );
+        })
         // Composite id por dia: garante que cada instância do hábito numa
         // coluna seja arrastada de forma independente (sem puxar os outros dias).
         .map((h) => ({ id: `${h.id}__${d.code}`, raw: h }) as KanbanItem);
