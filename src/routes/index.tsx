@@ -3300,7 +3300,13 @@ function TodoTab() {
 
   const all = items ?? [];
   const listaItems = all.filter((i) => !i.is_scheduled);
-  const agendaItems = all.filter((i) => !!i.is_scheduled);
+
+  // Itens sem agendamento aparecem na agenda/kanban assumindo o dia em que foram cadastrados
+  const effectiveDateFor = (i: TodoItem) =>
+    i.scheduled_date ?? (i.created_at ? i.created_at.slice(0, 10) : today);
+  const agendaItems = all.map((i) =>
+    i.is_scheduled && i.scheduled_date ? i : { ...i, scheduled_date: effectiveDateFor(i) },
+  );
 
   const pending = listaItems.filter((i) => !i.is_completed);
   const recentlyCompleted = listaItems.filter(
