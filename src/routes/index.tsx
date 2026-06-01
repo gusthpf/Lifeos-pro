@@ -2026,7 +2026,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-9 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -2044,6 +2044,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="metricas" className="gap-2">
               <Trophy className="h-4 w-4" /> Métricas
+            </TabsTrigger>
+            <TabsTrigger value="telemetria" className="gap-2">
+              <Activity className="h-4 w-4" /> Telemetria
             </TabsTrigger>
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
