@@ -76,6 +76,7 @@ import { WeeklyKanban, KANBAN_WEEK, type KanbanItem } from "@/components/WeeklyK
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
+import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
 import {
   BarChart,
