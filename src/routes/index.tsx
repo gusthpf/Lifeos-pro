@@ -76,6 +76,7 @@ import { WeeklyKanban, KANBAN_WEEK, type KanbanItem } from "@/components/WeeklyK
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
+import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
 import {
   BarChart,
@@ -2025,7 +2026,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-9 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -2043,6 +2044,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="metricas" className="gap-2">
               <Trophy className="h-4 w-4" /> Métricas
+            </TabsTrigger>
+            <TabsTrigger value="telemetria" className="gap-2">
+              <Activity className="h-4 w-4" /> Telemetria
             </TabsTrigger>
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
@@ -2071,6 +2075,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="metricas" className="mt-6">
             <MetricsTab />
+          </TabsContent>
+          <TabsContent value="telemetria" className="mt-6">
+            <TelemetryTab />
           </TabsContent>
           <TabsContent value="nexus" className="mt-6">
             <NexusTab />
