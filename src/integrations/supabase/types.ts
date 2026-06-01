@@ -560,6 +560,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_telemetry_xp_weekly"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
     }
@@ -603,10 +610,9 @@ export type Database = {
       }
       vw_telemetry_xp_weekly: {
         Row: {
-          data_registro: string | null
-          tarefas_concluidas: number | null
-          total_xp_dia: number | null
+          day: string | null
           user_id: string | null
+          xp_total: number | null
         }
         Relationships: []
       }
