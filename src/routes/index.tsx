@@ -2076,6 +2076,9 @@ function LifeCoachApp() {
           <TabsContent value="metricas" className="mt-6">
             <MetricsTab />
           </TabsContent>
+          <TabsContent value="telemetria" className="mt-6">
+            <TelemetryTab />
+          </TabsContent>
           <TabsContent value="nexus" className="mt-6">
             <NexusTab />
           </TabsContent>
