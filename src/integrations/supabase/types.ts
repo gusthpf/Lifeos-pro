@@ -601,6 +601,15 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_telemetry_xp_weekly: {
+        Row: {
+          data_registro: string | null
+          tarefas_concluidas: number | null
+          total_xp_dia: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       adicionar_xp: { Args: { xp_ganho: number }; Returns: undefined }
