@@ -422,10 +422,11 @@ export function useTodayAppointmentsAlert() {
           .order("start_time", { ascending: true }),
         supabase
           .from("todo_list")
-          .select("id,title,priority,is_completed,scheduled_date" as any)
-          .eq("is_scheduled", true as any)
-          .eq("scheduled_date", todayISO as any)
-          .eq("is_completed", false as any),
+          .select("id,title,priority,is_completed,scheduled_date,is_scheduled,created_at" as any)
+          .eq("is_completed", false as any)
+          .or(
+            `and(is_scheduled.eq.true,scheduled_date.eq.${todayISO}),and(is_scheduled.eq.false,created_at.gte.${dayStart.toISOString()},created_at.lte.${dayEnd.toISOString()})`,
+          ),
       ]);
       if (cancelled) return;
       const lines: string[] = [];
