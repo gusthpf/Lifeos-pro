@@ -84,9 +84,7 @@ export function CalendarTab() {
         .order("start_time", { ascending: true }),
       supabase
         .from("todo_list")
-        .select("id,title,priority,is_completed,scheduled_date" as any)
-        .eq("is_scheduled", true as any)
-        .not("scheduled_date", "is", null),
+        .select("id,title,priority,is_completed,scheduled_date,is_scheduled,created_at" as any),
     ]);
     if (apptRes.error) {
       toast.error("Falha ao carregar compromissos", { description: "Tente novamente mais tarde." });
@@ -106,8 +104,13 @@ export function CalendarTab() {
       };
     });
     const todoEvents: CalEvent[] = ((todoRes.data ?? []) as any[]).map((t) => {
-      const start = fromZonedTime(`${t.scheduled_date}T00:00`, SALVADOR_TZ);
-      const end = fromZonedTime(`${t.scheduled_date}T23:59`, SALVADOR_TZ);
+      // Se a tarefa não foi agendada, assume o dia em que foi cadastrada
+      const dateISO: string =
+        t.is_scheduled && t.scheduled_date
+          ? t.scheduled_date
+          : (t.created_at ?? new Date().toISOString()).slice(0, 10);
+      const start = fromZonedTime(`${dateISO}T00:00`, SALVADOR_TZ);
+      const end = fromZonedTime(`${dateISO}T23:59`, SALVADOR_TZ);
       return {
         id: `todo-${t.id}`,
         todoId: t.id,
