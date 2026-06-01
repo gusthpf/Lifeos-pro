@@ -288,7 +288,7 @@ export function TelemetryTab() {
                       fontSize: 12,
                     }}
                     labelStyle={{ color, fontWeight: 600 }}
-                    formatter={(v: number) => [`${v} XP`, "Throughput"]}
+                    formatter={(v) => [`${v ?? 0} XP`, "Throughput"]}
                   />
                   <Area
                     type="monotone"
