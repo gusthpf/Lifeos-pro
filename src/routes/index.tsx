@@ -1178,6 +1178,7 @@ function NocPanel() {
   const [schedule, setSchedule] = useState<string[]>(DEFAULT_WORKOUT_SCHEDULE);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const todayCode = weekdayCodeFromISO(today);
   const isScheduledToday = schedule.includes(todayCode);
@@ -1366,12 +1367,16 @@ function NocPanel() {
       role="status"
       aria-live="polite"
     >
-      <div
-        className="flex items-center justify-between border-b px-3 py-1.5 text-[11px] uppercase tracking-widest"
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between border-b px-3 py-1.5 text-[11px] uppercase tracking-widest"
         style={{
           borderColor: accentVar,
           color: accentFgVar,
         }}
+        aria-expanded={expanded}
+        aria-controls="noc-discipline-body"
       >
         <span className="flex items-center gap-2">
           <span
@@ -1385,96 +1390,107 @@ function NocPanel() {
         </span>
         <span className="flex items-center gap-2 opacity-80">
           <span>TZ: America/Bahia · {today}</span>
+          {expanded ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
         </span>
-      </div>
+      </button>
 
-      <div className="px-4 py-4">
-        {status === "loading" ? (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>$ probing habit_logs...</span>
+      {expanded && (
+        <div id="noc-discipline-body">
+          <div className="px-4 py-4">
+            {status === "loading" ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>$ probing habit_logs...</span>
+              </div>
+            ) : hasLogToday ? (
+              <div className="space-y-1" style={{ color: accentFgVar }}>
+                <div className="text-xs opacity-80">$ check --date {today}</div>
+                <div className="text-lg font-bold tracking-wider sm:text-xl">
+                  ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
+                </div>
+                <div className="text-xs opacity-80">
+                  {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje ·
+                  last_probe={lastCheck}
+                </div>
+              </div>
+            ) : offSchedule ? (
+              <div className="space-y-1" style={{ color: accentFgVar }}>
+                <div className="text-xs opacity-80">$ check --date {today}</div>
+                <div className="text-lg font-bold tracking-wider sm:text-xl">
+                  ◌ OFF-SCHEDULE / REPOUSO
+                </div>
+                <div className="text-xs opacity-80">
+                  Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
+                </div>
+                <div className="pt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setModalOpen(true)}
+                    disabled={!user}
+                    className="gap-2 font-mono uppercase tracking-wider"
+                  >
+                    <Dumbbell className="h-4 w-4" />
+                    Registrar Treino Extra
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setScheduleOpen(true)}
+                    disabled={!user}
+                    className="gap-2 font-mono uppercase tracking-wider"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Configurar dia de treino
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2" style={{ color: accentFgVar }}>
+                <div className="text-xs opacity-80">$ check --date {today}</div>
+                <div className="text-lg font-bold tracking-wider sm:text-xl">
+                  ✖ STATUS: ALERTA — TREINO PENDENTE
+                </div>
+                <div className="text-xs opacity-80">
+                  0 logs registrados · last_probe={lastCheck} · auto_retry=60s
+                </div>
+                <div className="pt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setModalOpen(true)}
+                    disabled={!user}
+                    className="gap-2 font-mono uppercase tracking-wider"
+                    style={{
+                      background: "var(--noc-offline)",
+                      color: "var(--noc-btn-fg)",
+                      border: "1px solid var(--noc-offline)",
+                    }}
+                  >
+                    <Dumbbell className="h-4 w-4" />
+                    Registrar Treino
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setScheduleOpen(true)}
+                    disabled={!user}
+                    className="gap-2 font-mono uppercase tracking-wider"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Configurar dia de treino
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        ) : hasLogToday ? (
-          <div className="space-y-1" style={{ color: accentFgVar }}>
-            <div className="text-xs opacity-80">$ check --date {today}</div>
-            <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ▲ SYSTEM ONLINE: DISCIPLINA ATIVA
-            </div>
-            <div className="text-xs opacity-80">
-              {logCount} log{logCount === 1 ? "" : "s"} registrado{logCount === 1 ? "" : "s"} hoje ·
-              last_probe={lastCheck}
-            </div>
-          </div>
-        ) : offSchedule ? (
-          <div className="space-y-1" style={{ color: accentFgVar }}>
-            <div className="text-xs opacity-80">$ check --date {today}</div>
-            <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ◌ OFF-SCHEDULE / REPOUSO
-            </div>
-            <div className="text-xs opacity-80">
-              Hoje ({todayCode}) não está na sua agenda de treino · last_probe={lastCheck}
-            </div>
-            <div className="pt-2 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setModalOpen(true)}
-                disabled={!user}
-                className="gap-2 font-mono uppercase tracking-wider"
-              >
-                <Dumbbell className="h-4 w-4" />
-                Registrar Treino Extra
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setScheduleOpen(true)}
-                disabled={!user}
-                className="gap-2 font-mono uppercase tracking-wider"
-              >
-                <Settings className="h-4 w-4" />
-                Configurar dia de treino
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2" style={{ color: accentFgVar }}>
-            <div className="text-xs opacity-80">$ check --date {today}</div>
-            <div className="text-lg font-bold tracking-wider sm:text-xl">
-              ✖ STATUS: ALERTA — TREINO PENDENTE
-            </div>
-            <div className="text-xs opacity-80">
-              0 logs registrados · last_probe={lastCheck} · auto_retry=60s
-            </div>
-            <div className="pt-2 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                onClick={() => setModalOpen(true)}
-                disabled={!user}
-                className="gap-2 font-mono uppercase tracking-wider"
-                style={{
-                  background: "var(--noc-offline)",
-                  color: "var(--noc-btn-fg)",
-                  border: "1px solid var(--noc-offline)",
-                }}
-              >
-                <Dumbbell className="h-4 w-4" />
-                Registrar Treino
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setScheduleOpen(true)}
-                disabled={!user}
-                className="gap-2 font-mono uppercase tracking-wider"
-              >
-                <Settings className="h-4 w-4" />
-                Configurar dia de treino
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+
+          <NocAuditLog />
+        </div>
+      )}
 
       <WorkoutScheduleDialog
         open={scheduleOpen}
@@ -1600,8 +1616,6 @@ function NocPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <NocAuditLog />
     </div>
   );
 }
