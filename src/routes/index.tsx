@@ -3567,7 +3567,16 @@ function TodoTab() {
               const meta = PRIORITY_META[(t.priority ?? "Média") as Priority];
               return (
                 <div
-                  className="cursor-grab select-none rounded-md border bg-card/80 p-2 text-xs shadow-sm active:cursor-grabbing"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openEdit(t)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openEdit(t);
+                    }
+                  }}
+                  className="cursor-grab select-none rounded-md border bg-card/80 p-2 text-xs shadow-sm transition-colors hover:bg-card active:cursor-grabbing"
                   style={{ borderColor: meta.ring }}
                 >
                   <div className="flex items-center gap-1.5">
