@@ -1191,7 +1191,7 @@ function NocPanel() {
       .eq("user_id", user.id)
       .maybeSingle();
     const arr = (data as any)?.workout_schedule;
-    if (Array.isArray(arr) && arr.length > 0) setSchedule(arr);
+    if (Array.isArray(arr)) setSchedule(arr);
   }
   useEffect(() => {
     loadSchedule();
