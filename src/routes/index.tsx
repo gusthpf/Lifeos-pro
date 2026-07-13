@@ -3196,7 +3196,7 @@ function TodoTab() {
   const [editScheduled, setEditScheduled] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [savingEdit, setSavingEdit] = useState(false);
-  const [view, setView] = useState<ViewMode>("lista");
+  const [view, setView] = useState<ViewMode>("kanban");
   const today = useBahiaToday();
 
   function openEdit(item: TodoItem) {
