@@ -302,8 +302,14 @@
 .rbc-theme .rbc-header { padding: 0.5rem; color: var(--muted-foreground); font-weight: 500; }
 .rbc-theme .rbc-off-range-bg { background: color-mix(in oklab, var(--muted) 50%, transparent); }
 .rbc-theme .rbc-today { background: color-mix(in oklab, var(--primary) 10%, transparent); }
-.rbc-theme .rbc-past-day { background: color-mix(in oklab, var(--muted) 35%, transparent); }
-.rbc-theme .rbc-past-day .rbc-date-cell { color: var(--muted-foreground); opacity: 0.75; }
+.rbc-theme .rbc-past-day {
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--muted-foreground) 8%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}
 .rbc-theme .rbc-event {
   background: var(--primary);
   color: var(--primary-foreground);
