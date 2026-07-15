@@ -65,6 +65,15 @@ function fromLocalInput(value: string): Date {
   return fromZonedTime(value, SALVADOR_TZ);
 }
 
+function dayPropGetter(d: Date) {
+  const day = startOfDay(toZonedTime(d, SALVADOR_TZ));
+  const today = startOfDay(toZonedTime(new Date(), SALVADOR_TZ));
+  if (isBefore(day, today)) {
+    return { className: "rbc-past-day" };
+  }
+  return {};
+}
+
 export function CalendarTab() {
   const { user } = AuthCtx.useAuth();
   const [events, setEvents] = useState<CalEvent[]>([]);
