@@ -302,8 +302,14 @@
 .rbc-theme .rbc-header { padding: 0.5rem; color: var(--muted-foreground); font-weight: 500; }
 .rbc-theme .rbc-off-range-bg { background: color-mix(in oklab, var(--muted) 50%, transparent); }
 .rbc-theme .rbc-today { background: color-mix(in oklab, var(--primary) 10%, transparent); }
-.rbc-theme .rbc-past-day { background: color-mix(in oklab, var(--muted) 35%, transparent); }
-.rbc-theme .rbc-past-day .rbc-date-cell { color: var(--muted-foreground); opacity: 0.75; }
+.rbc-theme .rbc-past-day { background: color-mix(in oklab, var(--muted) 70%, transparent); }
+.rbc-theme .rbc-month-row .rbc-row-content .rbc-row:first-child .rbc-date-cell { position: relative; }
+.rbc-theme .rbc-month-view .rbc-month-row { position: relative; }
+.rbc-theme .rbc-day-bg.rbc-past-day + .rbc-day-bg { }
+.rbc-theme .rbc-past-day::after { content: ""; }
+/* Dim date numbers and events sitting over past days (month view uses row overlay) */
+.rbc-theme .rbc-past-day { filter: none; }
+.rbc-theme .rbc-month-row:has(.rbc-day-bg.rbc-past-day) .rbc-date-cell { color: var(--muted-foreground); }
 .rbc-theme .rbc-event {
   background: var(--primary);
   color: var(--primary-foreground);
