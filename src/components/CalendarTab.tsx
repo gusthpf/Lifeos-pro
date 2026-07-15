@@ -267,6 +267,7 @@ export function CalendarTab() {
             views={[Views.MONTH, Views.WEEK, Views.DAY]}
             selectable
             popup
+            dayPropGetter={dayPropGetter}
             messages={messages}
             startAccessor="start"
             endAccessor="end"
