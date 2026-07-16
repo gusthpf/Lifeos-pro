@@ -2891,7 +2891,7 @@ function StrategyTab() {
     <div className="space-y-6">
 
       <div className="flex items-center justify-between">
-        <ViewModeSelector value={view} onChange={setView} />
+        <ViewModeSelector value={view} onChange={(v) => setView(v as "lista" | "agenda")} showKanban={false} />
         <span className="text-xs text-muted-foreground">
           {view === "lista" ? `${listaItems.length} itens` : `${agendaItems.length} agendadas`}
         </span>
