@@ -11,12 +11,24 @@ import { Loader2, KeyRound } from "lucide-react";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Redefinir senha — Life OS" },
-      { name: "description", content: "Defina uma nova senha de acesso ao Life OS - Pro Manager." },
+      { title: "Redefinir senha — Life OS - Pro Manager" },
+      {
+        name: "description",
+        content: "Defina uma nova senha de acesso ao console Life OS - Pro Manager.",
+      },
+      { property: "og:title", content: "Redefinir senha — Life OS - Pro Manager" },
+      {
+        property: "og:description",
+        content: "Fluxo seguro de redefinição de senha do Life OS.",
+      },
+      { property: "og:url", content: "https://lifementor.lovable.app/reset-password" },
+      { name: "robots", content: "noindex" },
     ],
+    links: [{ rel: "canonical", href: "https://lifementor.lovable.app/reset-password" }],
   }),
   component: ResetPasswordPage,
 });
+
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
