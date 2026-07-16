@@ -3080,27 +3080,46 @@ type Schedulable = { is_scheduled: boolean | null; scheduled_date: string | null
 
 function groupByAgenda<T extends Schedulable>(items: T[], todayISO: string) {
   const tomorrowISO = getNextDateISO(todayISO);
-  const groups: { key: "atrasado" | "hoje" | "amanha" | "proximos"; label: string; items: T[] }[] =
-    [
-      { key: "atrasado", label: "Atrasado", items: [] },
-      { key: "hoje", label: "Hoje", items: [] },
-      { key: "amanha", label: "Amanhã", items: [] },
-      { key: "proximos", label: "Próximos Dias", items: [] },
-    ];
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const groups: {
+    key: "atrasado" | "hoje" | "amanha" | "proximos" | "concluidos";
+    label: string;
+    items: T[];
+  }[] = [
+    { key: "atrasado", label: "Atrasado", items: [] },
+    { key: "hoje", label: "Hoje", items: [] },
+    { key: "amanha", label: "Amanhã", items: [] },
+    { key: "proximos", label: "Próximos Dias", items: [] },
+    { key: "concluidos", label: "Concluídos (últimas 24h)", items: [] },
+  ];
   for (const item of items) {
     if (!item.scheduled_date) continue;
     const d = item.scheduled_date;
     const isCompleted = (item as any).is_completed === true;
-    if (d < todayISO && !isCompleted) groups[0].items.push(item);
+    const completedAt = (item as any).completed_at as string | null | undefined;
+    if (isCompleted) {
+      // Arquiva automaticamente após 24h — só entra em "concluídos" se estiver dentro da janela
+      if (completedAt && now - new Date(completedAt).getTime() <= DAY_MS) {
+        groups[4].items.push(item);
+      }
+      continue;
+    }
+    if (d < todayISO) groups[0].items.push(item);
     else if (d === todayISO) groups[1].items.push(item);
     else if (d === tomorrowISO) groups[2].items.push(item);
     else if (d > tomorrowISO) groups[3].items.push(item);
-    else if (d < todayISO && isCompleted) groups[3].items.push(item);
   }
   for (const g of groups) {
-    g.items.sort((a: any, b: any) =>
-      (a.scheduled_date ?? "").localeCompare(b.scheduled_date ?? ""),
-    );
+    if (g.key === "concluidos") {
+      g.items.sort((a: any, b: any) =>
+        (b.completed_at ?? "").localeCompare(a.completed_at ?? ""),
+      );
+    } else {
+      g.items.sort((a: any, b: any) =>
+        (a.scheduled_date ?? "").localeCompare(b.scheduled_date ?? ""),
+      );
+    }
   }
   return groups.filter((g) => g.items.length > 0);
 }
