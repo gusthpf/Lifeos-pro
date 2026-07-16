@@ -3539,11 +3539,15 @@ function TodoTab() {
                       "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
                       g.key === "atrasado"
                         ? "border border-destructive/40 bg-destructive/10 text-destructive"
-                        : "border border-primary/30 bg-primary/10 text-primary",
+                        : g.key === "concluidos"
+                          ? "border border-border bg-muted/50 text-muted-foreground"
+                          : "border border-primary/30 bg-primary/10 text-primary",
                     )}
                   >
                     {g.key === "atrasado" ? (
                       <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : g.key === "concluidos" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       <CalendarDays className="h-3.5 w-3.5" />
                     )}
