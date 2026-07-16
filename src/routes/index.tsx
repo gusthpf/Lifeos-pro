@@ -92,19 +92,55 @@ import {
   CartesianGrid,
 } from "recharts";
 
+const OG_IMAGE =
+  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0d192a45-4158-45d2-a784-a8bd75d403de/id-preview-94825779--d60b01c4-81ef-45b1-b561-d23abc02dcc0.lovable.app-1776977697012.png";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LifeOS - Pro Manager" },
+      { title: "Life OS - Pro Manager — Console de Performance Pessoal" },
       {
         name: "description",
         content:
           "Seu life coach pessoal: gerencie hábitos, metas de vida, reflexões e métricas de evolução em XP.",
       },
+      { property: "og:title", content: "Life OS - Pro Manager — Console de Performance Pessoal" },
+      {
+        property: "og:description",
+        content:
+          "Seu life coach pessoal: gerencie hábitos, metas de vida, reflexões e métricas de evolução em XP.",
+      },
+      { property: "og:url", content: "https://lifementor.lovable.app/" },
+      { property: "og:image", content: OG_IMAGE },
+      { name: "twitter:title", content: "Life OS - Pro Manager" },
+      {
+        name: "twitter:description",
+        content:
+          "Gerencie hábitos, metas, reflexões e XP em um console de performance pessoal.",
+      },
+      { name: "twitter:image", content: OG_IMAGE },
+    ],
+    links: [{ rel: "canonical", href: "https://lifementor.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Life OS - Pro Manager",
+          applicationCategory: "ProductivitySoftware",
+          operatingSystem: "Web",
+          url: "https://lifementor.lovable.app/",
+          description:
+            "Console de monitoramento de performance pessoal com estética e lógica de NOC.",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
+        }),
+      },
     ],
   }),
   component: LifeCoachApp,
 });
+
 
 type FrequencyType = "diario" | "semanal" | "mensal";
 type RecurrenceType = "continuous" | "interval";

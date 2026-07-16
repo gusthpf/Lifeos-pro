@@ -13,12 +13,23 @@ import { Loader2, Sparkles, KeyRound } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Life OS - Pro Manager" },
-      { name: "description", content: "Console de monitoramento de performance pessoal com estética e lógica de NOC." },
+      { title: "Acessar Life OS - Pro Manager" },
+      {
+        name: "description",
+        content: "Faça login ou crie sua conta para acessar o console Life OS - Pro Manager.",
+      },
+      { property: "og:title", content: "Acessar Life OS - Pro Manager" },
+      {
+        property: "og:description",
+        content: "Login e cadastro do console de performance pessoal Life OS.",
+      },
+      { property: "og:url", content: "https://lifementor.lovable.app/auth" },
     ],
+    links: [{ rel: "canonical", href: "https://lifementor.lovable.app/auth" }],
   }),
   component: AuthPage,
 });
+
 
 function AuthPage() {
   const navigate = useNavigate();

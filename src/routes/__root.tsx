@@ -30,17 +30,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Life OS - Pro Manager" },
-      { name: "description", content: "Console de monitoramento de performance pessoal com estética e lógica de NOC." },
       { name: "author", content: "Life OS" },
-      { property: "og:title", content: "Life OS - Pro Manager" },
-      { property: "og:description", content: "Console de monitoramento de performance pessoal com estética e lógica de NOC." },
+      { property: "og:site_name", content: "Life OS - Pro Manager" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Life OS - Pro Manager" },
-      { name: "twitter:description", content: "Console de monitoramento de performance pessoal com estética e lógica de NOC." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0d192a45-4158-45d2-a784-a8bd75d403de/id-preview-94825779--d60b01c4-81ef-45b1-b561-d23abc02dcc0.lovable.app-1776977697012.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0d192a45-4158-45d2-a784-a8bd75d403de/id-preview-94825779--d60b01c4-81ef-45b1-b561-d23abc02dcc0.lovable.app-1776977697012.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
@@ -53,11 +46,25 @@ export const Route = createRootRoute({
         href: "/favicon.png",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Life OS - Pro Manager",
+          url: "https://lifementor.lovable.app",
+          description:
+            "Console de monitoramento de performance pessoal com estética e lógica de NOC.",
+        }),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
+
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (

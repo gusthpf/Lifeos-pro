@@ -1,0 +1,14 @@
+# Life OS - Pro Manager
+
+> Console de monitoramento de performance pessoal com estética e lógica de NOC — gerencie hábitos, metas, reflexões e evolução em XP.
+
+Life OS - Pro Manager é um aplicativo web de life coaching pessoal que trata sua rotina como um sistema operacional: hábitos são serviços monitorados, metas são SLAs e sua evolução é medida em XP.
+
+## Pages
+
+- [Home](/): Dashboard NOC com uptime humano, hábitos, metas, reflexões e status do sistema.
+- [Wiki Técnica](/wiki): Base de conhecimento pesquisável com soluções salvas pelo assistente Nexus.
+
+## Optional
+
+- [Acessar](/auth): Login e cadastro.
