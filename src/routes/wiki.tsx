@@ -14,7 +14,7 @@ import { toast, Toaster } from "sonner";
 export const Route = createFileRoute("/wiki")({
   head: () => ({
     meta: [
-      { title: "LifeOS - Pro Manager" },
+      { title: "Wiki Técnica — Life OS - Pro Manager" },
       {
         name: "description",
         content:
@@ -26,10 +26,13 @@ export const Route = createFileRoute("/wiki")({
         content:
           "Pesquise as soluções e referências técnicas que você salvou na sua Wiki pessoal.",
       },
+      { property: "og:url", content: "https://lifementor.lovable.app/wiki" },
     ],
+    links: [{ rel: "canonical", href: "https://lifementor.lovable.app/wiki" }],
   }),
   component: WikiPage,
 });
+
 
 type WikiEntry = {
   id: string;
