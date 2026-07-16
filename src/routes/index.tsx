@@ -2679,7 +2679,7 @@ function StrategyTab() {
   const { user } = AuthCtx.useAuth();
   const [items, setItems] = useState<Strategy[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("lista");
+  const [view, setView] = useState<"lista" | "agenda">("lista");
   const [editing, setEditing] = useState<Strategy | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -2891,7 +2891,7 @@ function StrategyTab() {
     <div className="space-y-6">
 
       <div className="flex items-center justify-between">
-        <ViewModeSelector value={view} onChange={setView} />
+        <ViewModeSelector value={view} onChange={(v) => setView(v as "lista" | "agenda")} showKanban={false} />
         <span className="text-xs text-muted-foreground">
           {view === "lista" ? `${listaItems.length} itens` : `${agendaItems.length} agendadas`}
         </span>
@@ -3037,14 +3037,16 @@ type ViewMode = "lista" | "agenda" | "kanban";
 function ViewModeSelector({
   value,
   onChange,
+  showKanban = true,
 }: {
   value: ViewMode;
   onChange: (v: ViewMode) => void;
+  showKanban?: boolean;
 }) {
   const opts: { v: ViewMode; label: string; icon: React.ReactNode }[] = [
     { v: "lista", label: "Lista Geral", icon: <ListFilter className="h-3.5 w-3.5" /> },
     { v: "agenda", label: "Agenda", icon: <CalendarDays className="h-3.5 w-3.5" /> },
-    { v: "kanban", label: "Kanban Semanal", icon: <ListTodo className="h-3.5 w-3.5" /> },
+    ...(showKanban ? [{ v: "kanban" as ViewMode, label: "Kanban Semanal", icon: <ListTodo className="h-3.5 w-3.5" /> }] : []),
   ];
   return (
     <div
