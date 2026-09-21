@@ -72,7 +72,7 @@ export function ProjectsPortfolioTab() {
       scenario_pain: pain.trim(),
       technical_solution: solution.trim(),
       business_impact: impact.trim(),
-      tech_stack: stack.trim() || null,
+      tech_stack: stack.trim(),
     });
     setSaving(false);
     if (error) {
@@ -94,7 +94,6 @@ export function ProjectsPortfolioTab() {
     else {
       toast.success("Projeto removido.");
       setProjects((prev) => prev.filter((p) => p.id !== id));
-etProjects((prev) => prev.filter((p) => p.id !== id));
     }
   };
 
