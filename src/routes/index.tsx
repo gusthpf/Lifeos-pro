@@ -4544,7 +4544,8 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 type ChatMsg = { role: "user" | "assistant"; content: string };
 type NexusSession = { id: string; title: string; updated_at: string };
 
-const NEXUS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-chat`;
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 function NexusTab() {
   const { user } = AuthCtx.useAuth();
@@ -4557,9 +4558,60 @@ function NexusTab() {
   const [savedIdxs, setSavedIdxs] = useState<Set<number>>(new Set());
   const [useContext, setUseContext] = useState(true);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [keyChecked, setKeyChecked] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("user_settings")
+        .select("gemini_api_key")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const key = (data?.gemini_api_key ?? "").trim();
+      setApiKey(key.length > 0 ? key : null);
+      setKeyChecked(true);
+    })();
+  }, []);
+
+  async function buildContext(): Promise<string> {
+    const [notes, projects] = await Promise.all([
+      supabase
+        .from("study_notes")
+        .select("title,module,explanation")
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("projects_portfolio")
+        .select("title,business_impact,tech_stack")
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+    const notesTxt = (notes.data ?? [])
+      .map(
+        (n: any) =>
+          `- [${n.module}] ${n.title}: ${(n.explanation ?? "").slice(0, 200)}`,
+      )
+      .join("\n");
+    const projTxt = (projects.data ?? [])
+      .map(
+        (p: any) =>
+          `- ${p.title} (stack: ${p.tech_stack ?? "-"}): ${(p.business_impact ?? "").slice(0, 200)}`,
+      )
+      .join("\n");
+    return [
+      "Você é o Nexus, coach-mentor técnico do Life OS do usuário. Responda em português do Brasil, direto ao ponto, usando Markdown (listas e blocos de código quando útil).",
+      notesTxt ? `\nAnotações de estudo recentes (Cérebro Digital):\n${notesTxt}` : "",
+      projTxt ? `\nProjetos do portfólio:\n${projTxt}` : "",
+      "\nUse esse contexto quando fizer sentido; não invente dados que não estejam aqui.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   async function loadSessions() {
     const { data } = await supabase
