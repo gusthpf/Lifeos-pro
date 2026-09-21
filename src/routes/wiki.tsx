@@ -80,6 +80,17 @@ function WikiPage() {
     })();
   }, [user]);
 
+  async function removeEntry(id: string) {
+    if (!window.confirm("Excluir esta entrada da Wiki definitivamente?")) return;
+    const { error } = await supabase.from("kb_tecnica").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir.");
+      return;
+    }
+    toast.success("Entrada removida.");
+    setEntries((prev) => (prev ?? []).filter((e) => e.id !== id));
+  }
+
   const filtered = useMemo(() => {
     if (!entries) return null;
     const q = query.trim().toLowerCase();
