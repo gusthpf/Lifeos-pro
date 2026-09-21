@@ -41,6 +41,7 @@ export function ProjectsPortfolioTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [interview, setInterview] = useState<Project | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [pain, setPain] = useState("");
