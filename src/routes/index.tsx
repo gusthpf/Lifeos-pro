@@ -66,6 +66,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { format, addWeeks, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1998,6 +2004,12 @@ function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
   useTodayAppointmentsAlert();
+  const [activeTab, setActiveTab] = useState("dojo");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const goToTab = (tab: string) => {
+    setActiveTab(tab);
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const fullName = profile?.full_name?.trim() || username || "";
   const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const getTimeGreeting = () => {
