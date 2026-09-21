@@ -5991,6 +5991,73 @@ function MonthlyHaPanel() {
 }
 
 /* ============ SETTINGS / DATA EXPORT ============ */
+function GeminiKeyCard() {
+  const [key, setKey] = useState("");
+  const [rowId, setRowId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("user_settings")
+        .select("id,gemini_api_key")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        setRowId(data.id);
+        setKey(data.gemini_api_key ?? "");
+      }
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    const value = key.trim() || null;
+    const { error } = rowId
+      ? await supabase.from("user_settings").update({ gemini_api_key: value }).eq("id", rowId)
+      : await supabase
+          .from("user_settings")
+          .insert({ gemini_api_key: value })
+          .select("id")
+          .single()
+          .then((r) => {
+            if (r.data) setRowId(r.data.id);
+            return { error: r.error };
+          });
+    setSaving(false);
+    if (error) {
+      toast.error("Não consegui salvar a chave");
+      return;
+    }
+    toast.success("Chave do Gemini salva");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Chave da API do Gemini</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Usada pelo Nexus para conversar com o modelo gemini-1.5-flash. Pegue sua chave no Google
+          AI Studio.
+        </p>
+        <Input
+          type="password"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="AIza..."
+          className="font-mono"
+        />
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Salvar chave
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsTab() {
   const { user } = AuthCtx.useAuth();
   const [exporting, setExporting] = useState(false);
