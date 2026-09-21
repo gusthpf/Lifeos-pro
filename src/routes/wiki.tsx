@@ -6,7 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookMarked, Search, ArrowLeft, Loader2, Copy, FileDown } from "lucide-react";
+import {
+  BookMarked,
+  Search,
+  ArrowLeft,
+  Loader2,
+  Copy,
+  FileDown,
+  BrainCircuit,
+  Briefcase,
+  Trash2,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CerebroDigitalTab } from "@/components/CerebroDigital";
+import { ProjectsPortfolioTab } from "@/components/ProjectsPortfolio";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast, Toaster } from "sonner";
