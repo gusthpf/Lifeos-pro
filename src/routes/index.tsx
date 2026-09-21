@@ -2127,7 +2127,7 @@ function LifeCoachApp() {
         <ManagementBar />
         <div ref={tabsRef}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-9 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -2148,12 +2148,6 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
-            </TabsTrigger>
-            <TabsTrigger value="cerebro" className="gap-2">
-              <BrainCircuit className="h-4 w-4" /> Cérebro
-            </TabsTrigger>
-            <TabsTrigger value="portfolio" className="gap-2">
-              <Briefcase className="h-4 w-4" /> Portfólio
             </TabsTrigger>
           </TabsList>
 
@@ -2182,12 +2176,6 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="nexus" className="mt-6">
             <NexusTab />
-          </TabsContent>
-          <TabsContent value="cerebro" className="mt-6">
-            <CerebroDigitalTab />
-          </TabsContent>
-          <TabsContent value="portfolio" className="mt-6">
-            <ProjectsPortfolioTab />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
