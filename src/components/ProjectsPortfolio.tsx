@@ -92,6 +92,7 @@ export function ProjectsPortfolioTab() {
     setSolution("");
     setImpact("");
     setStack("");
+    setFormOpen(false);
     load();
   };
 
