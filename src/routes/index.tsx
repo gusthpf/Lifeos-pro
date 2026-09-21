@@ -4533,7 +4533,7 @@ const GEMINI_URL =
 const GEMINI_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 async function requestGemini(apiKey: string, body: string, signal: AbortSignal) {
-  const delays = [0, 800, 1800];
+  const delays = [0, 2000]; // tentativa original + 1 retry após 2s
 
   for (let attempt = 0; attempt < delays.length; attempt += 1) {
     const delay = delays[attempt];
