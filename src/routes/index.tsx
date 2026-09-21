@@ -360,6 +360,20 @@ function SlaGauge({ value }: { value: number }) {
 }
 
 function SystemTicker({ uptime }: { uptime: number }) {
+  const [now, setNow] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () =>
+      setNow(
+        new Date().toLocaleTimeString("pt-BR", {
+          timeZone: "America/Bahia",
+          hour12: false,
+        }),
+      );
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const tier =
     uptime < 50
       ? {
@@ -391,11 +405,6 @@ function SystemTicker({ uptime }: { uptime: number }) {
             pulse: "",
           };
 
-  const now = new Date().toLocaleTimeString("pt-BR", {
-    timeZone: "America/Bahia",
-    hour12: false,
-  });
-
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-md border ${tier.border} ${tier.bg} px-3 py-2 font-mono text-xs uppercase tracking-widest ${tier.text}`}
@@ -408,7 +417,7 @@ function SystemTicker({ uptime }: { uptime: number }) {
         <span className="font-bold">{tier.label}</span>
       </span>
       <span className="opacity-70">
-        UPTIME {uptime.toFixed(1)}% · {now} BHA
+        UPTIME {uptime.toFixed(1)}%{now ? ` · ${now} BHA` : ""}
       </span>
     </div>
   );
