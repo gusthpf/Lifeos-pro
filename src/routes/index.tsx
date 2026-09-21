@@ -79,7 +79,9 @@ import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
 import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { CerebroDigitalTab } from "@/components/CerebroDigital";
+import { ProjectsPortfolioTab } from "@/components/ProjectsPortfolio";
 import {
   BarChart,
   Bar,
@@ -358,6 +360,20 @@ function SlaGauge({ value }: { value: number }) {
 }
 
 function SystemTicker({ uptime }: { uptime: number }) {
+  const [now, setNow] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () =>
+      setNow(
+        new Date().toLocaleTimeString("pt-BR", {
+          timeZone: "America/Bahia",
+          hour12: false,
+        }),
+      );
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const tier =
     uptime < 50
       ? {
@@ -389,11 +405,6 @@ function SystemTicker({ uptime }: { uptime: number }) {
             pulse: "",
           };
 
-  const now = new Date().toLocaleTimeString("pt-BR", {
-    timeZone: "America/Bahia",
-    hour12: false,
-  });
-
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-md border ${tier.border} ${tier.bg} px-3 py-2 font-mono text-xs uppercase tracking-widest ${tier.text}`}
@@ -406,7 +417,7 @@ function SystemTicker({ uptime }: { uptime: number }) {
         <span className="font-bold">{tier.label}</span>
       </span>
       <span className="opacity-70">
-        UPTIME {uptime.toFixed(1)}% · {now} BHA
+        UPTIME {uptime.toFixed(1)}%{now ? ` · ${now} BHA` : ""}
       </span>
     </div>
   );
@@ -2106,6 +2117,9 @@ function LifeCoachApp() {
             <TabsTrigger value="cerebro" className="gap-2">
               <BrainCircuit className="h-4 w-4" /> Cérebro
             </TabsTrigger>
+            <TabsTrigger value="portfolio" className="gap-2">
+              <Briefcase className="h-4 w-4" /> Portfólio
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Archive className="h-4 w-4" /> Config
             </TabsTrigger>
@@ -2139,6 +2153,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="cerebro" className="mt-6">
             <CerebroDigitalTab />
+          </TabsContent>
+          <TabsContent value="portfolio" className="mt-6">
+            <ProjectsPortfolioTab />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
