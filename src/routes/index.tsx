@@ -6118,6 +6118,7 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
+      <GeminiKeyCard />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Portabilidade de Dados</CardTitle>
