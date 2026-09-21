@@ -282,7 +282,18 @@ ${cards}
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base leading-snug">{e.titulo}</CardTitle>
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="text-base leading-snug">{e.titulo}</CardTitle>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeEntry(e.id)}
+                      aria-label="Excluir entrada"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <div className="flex items-center gap-2 pt-1">
                     {e.criado_em && (
                       <span className="text-xs text-muted-foreground">
