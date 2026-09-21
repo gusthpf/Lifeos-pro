@@ -6031,7 +6031,7 @@ function GeminiKeyCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Usada pelo Nexus para conversar com o modelo gemini-2.0-flash. Pegue sua chave no Google
+          Usada pelo Nexus para conversar com o modelo Gemini Flash (versão mais recente). Pegue sua chave no Google
           AI Studio.
         </p>
         <Input
