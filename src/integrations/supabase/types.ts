@@ -386,6 +386,36 @@ export type Database = {
         }
         Relationships: []
       }
+      projects_portfolio: {
+        Row: {
+          business_impact: string
+          created_at: string
+          id: string
+          scenario_pain: string
+          tech_stack: string
+          technical_solution: string
+          title: string
+        }
+        Insert: {
+          business_impact: string
+          created_at?: string
+          id?: string
+          scenario_pain: string
+          tech_stack: string
+          technical_solution: string
+          title: string
+        }
+        Update: {
+          business_impact?: string
+          created_at?: string
+          id?: string
+          scenario_pain?: string
+          tech_stack?: string
+          technical_solution?: string
+          title?: string
+        }
+        Relationships: []
+      }
       rca_logs: {
         Row: {
           action_plan: string
