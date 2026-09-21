@@ -4544,7 +4544,70 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 type ChatMsg = { role: "user" | "assistant"; content: string };
 type NexusSession = { id: string; title: string; updated_at: string };
 
-const NEXUS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-chat`;
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+/* Markdown leve: negrito, itálico, código inline, títulos e listas */
+function inlineMd(text: string, keyPrefix: string) {
+  const nodes: React.ReactNode[] = [];
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let n = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const tok = m[0];
+    const k = `${keyPrefix}-${n++}`;
+    if (tok.startsWith("**")) nodes.push(<strong key={k}>{tok.slice(2, -2)}</strong>);
+    else if (tok.startsWith("`"))
+      nodes.push(
+        <code key={k} className="rounded bg-primary/10 px-1 py-0.5 text-[0.85em] text-primary">
+          {tok.slice(1, -1)}
+        </code>,
+      );
+    else nodes.push(<em key={k}>{tok.slice(1, -1)}</em>);
+    last = m.index + tok.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+function MarkdownText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed === "") return <div key={i} className="h-2" />;
+        const heading = /^(#{1,6})\s+(.*)$/.exec(trimmed);
+        if (heading)
+          return (
+            <p key={i} className="font-semibold text-primary">
+              {inlineMd(heading[2], `h${i}`)}
+            </p>
+          );
+        const bullet = /^[-*•]\s+(.*)$/.exec(trimmed);
+        if (bullet)
+          return (
+            <div key={i} className="flex gap-2 pl-2">
+              <span className="text-primary">•</span>
+              <span>{inlineMd(bullet[1], `b${i}`)}</span>
+            </div>
+          );
+        const ordered = /^(\d+)[.)]\s+(.*)$/.exec(trimmed);
+        if (ordered)
+          return (
+            <div key={i} className="flex gap-2 pl-2">
+              <span className="text-primary">{ordered[1]}.</span>
+              <span>{inlineMd(ordered[2], `o${i}`)}</span>
+            </div>
+          );
+        return <p key={i}>{inlineMd(line, `p${i}`)}</p>;
+      })}
+    </div>
+  );
+}
+
 
 function NexusTab() {
   const { user } = AuthCtx.useAuth();
@@ -4557,9 +4620,60 @@ function NexusTab() {
   const [savedIdxs, setSavedIdxs] = useState<Set<number>>(new Set());
   const [useContext, setUseContext] = useState(true);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [keyChecked, setKeyChecked] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("user_settings")
+        .select("gemini_api_key")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const key = (data?.gemini_api_key ?? "").trim();
+      setApiKey(key.length > 0 ? key : null);
+      setKeyChecked(true);
+    })();
+  }, []);
+
+  async function buildContext(): Promise<string> {
+    const [notes, projects] = await Promise.all([
+      supabase
+        .from("study_notes")
+        .select("title,module,explanation")
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("projects_portfolio")
+        .select("title,business_impact,tech_stack")
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+    const notesTxt = (notes.data ?? [])
+      .map(
+        (n: any) =>
+          `- [${n.module}] ${n.title}: ${(n.explanation ?? "").slice(0, 200)}`,
+      )
+      .join("\n");
+    const projTxt = (projects.data ?? [])
+      .map(
+        (p: any) =>
+          `- ${p.title} (stack: ${p.tech_stack ?? "-"}): ${(p.business_impact ?? "").slice(0, 200)}`,
+      )
+      .join("\n");
+    return [
+      "Você é o Nexus, coach-mentor técnico do Life OS do usuário. Responda em português do Brasil, direto ao ponto, usando Markdown (listas e blocos de código quando útil).",
+      notesTxt ? `\nAnotações de estudo recentes (Cérebro Digital):\n${notesTxt}` : "",
+      projTxt ? `\nProjetos do portfólio:\n${projTxt}` : "",
+      "\nUse esse contexto quando fizer sentido; não invente dados que não estejam aqui.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   async function loadSessions() {
     const { data } = await supabase
@@ -4685,6 +4799,13 @@ function NexusTab() {
       return;
     }
 
+    if (!apiKey) {
+      toast.error("Chave da API não configurada", {
+        description: "Adicione sua chave do Gemini na tela de Configurações.",
+      });
+      return;
+    }
+
     const sid = await ensureSession(raw);
     if (!sid) return;
 
@@ -4698,37 +4819,33 @@ function NexusTab() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    let assistantSoFar = "";
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
-      });
-    };
-
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token =
-        sessionData.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const systemText = useContext
+        ? await buildContext()
+        : "Você é o Nexus, coach-mentor técnico. Responda em português do Brasil usando Markdown.";
 
-      const resp = await fetch(NEXUS_URL, {
+      const history = next.slice(-12).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+
+      const resp = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ messages: next, useContext }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemText }] },
+          contents: history,
+        }),
         signal: controller.signal,
       });
 
-      if (!resp.ok || !resp.body) {
-        if (resp.status === 429) toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
-        else if (resp.status === 402) toast.error("Créditos esgotados", { description: "Adicione em Workspace > Usage." });
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => "");
+        console.error("Gemini error:", resp.status, detail);
+        if (resp.status === 400 || resp.status === 403)
+          toast.error("Chave da API inválida", { description: "Revise a chave em Configurações." });
+        else if (resp.status === 429)
+          toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
         else toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
         setMessages((m) => m.slice(0, -1));
         setInput(raw);
@@ -4736,47 +4853,41 @@ function NexusTab() {
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let done = false;
-      while (!done) {
-        const { done: rd, value } = await reader.read();
-        if (rd) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            done = true;
-            break;
-          }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const c = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (c) upsertAssistant(c);
-          } catch {
-            buf = line + "\n" + buf;
-            break;
-          }
-        }
+      const json: any = await resp.json();
+      const full: string =
+        (json?.candidates?.[0]?.content?.parts ?? [])
+          .map((p: any) => p?.text ?? "")
+          .join("") || "";
+
+      if (!full) {
+        toast.error("Resposta vazia do Gemini");
+        setSending(false);
+        return;
       }
 
-      if (assistantSoFar) {
-        await persistMessage(sid, "assistant", assistantSoFar);
-        // Atualiza ordem da sessão na lista
-        setSessions((s) => {
-          const found = s.find((x) => x.id === sid);
-          if (!found) return s;
-          const updated = { ...found, updated_at: new Date().toISOString() };
-          return [updated, ...s.filter((x) => x.id !== sid)];
-        });
+      // Efeito de digitação suave
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      setSending(false);
+      const step = Math.max(2, Math.ceil(full.length / 220));
+      for (let i = 0; i < full.length; i += step) {
+        if (controller.signal.aborted) break;
+        const slice = full.slice(0, i + step);
+        setMessages((prev) =>
+          prev.map((m, idx) => (idx === prev.length - 1 ? { ...m, content: slice } : m)),
+        );
+        await new Promise((r) => setTimeout(r, 12));
       }
+      setMessages((prev) =>
+        prev.map((m, idx) => (idx === prev.length - 1 ? { ...m, content: full } : m)),
+      );
+
+      await persistMessage(sid, "assistant", full);
+      setSessions((s) => {
+        const found = s.find((x) => x.id === sid);
+        if (!found) return s;
+        const updated = { ...found, updated_at: new Date().toISOString() };
+        return [updated, ...s.filter((x) => x.id !== sid)];
+      });
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
@@ -4868,9 +4979,7 @@ function NexusTab() {
           <code style={{ color: "var(--nexus-code-fg)" }}>{p.content}</code>
         </pre>
       ) : (
-        <span key={i} className="whitespace-pre-wrap">
-          {p.content}
-        </span>
+        <MarkdownText key={i} text={p.content} />
       ),
     );
   }
@@ -4943,6 +5052,11 @@ function NexusTab() {
           </label>
         </CardHeader>
         <CardContent className="p-0">
+          {keyChecked && !apiKey && (
+            <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+              ⚠️ Chave da API não configurada. Por favor, adicione na tela de Configurações.
+            </div>
+          )}
           <div ref={scrollRef} className="h-[480px] overflow-y-auto p-4 text-sm">
             {messages.length === 0 ? (
               <div className="text-muted-foreground space-y-1">
@@ -5016,11 +5130,20 @@ function NexusTab() {
                   send();
                 }
               }}
-              placeholder="Dúvida técnica, desabafo ou /help..."
-              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-              disabled={sending}
+              placeholder={
+                keyChecked && !apiKey
+                  ? "Configure a chave do Gemini em Configurações..."
+                  : "Dúvida técnica, desabafo ou /help..."
+              }
+              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed"
+              disabled={sending || !keyChecked || !apiKey}
             />
-            <Button size="sm" onClick={send} disabled={sending || !input.trim()} className="gap-1">
+            <Button
+              size="sm"
+              onClick={send}
+              disabled={sending || !input.trim() || !apiKey}
+              className="gap-1"
+            >
               <Send className="h-3 w-3" /> Enviar
             </Button>
           </div>
@@ -5868,6 +5991,73 @@ function MonthlyHaPanel() {
 }
 
 /* ============ SETTINGS / DATA EXPORT ============ */
+function GeminiKeyCard() {
+  const [key, setKey] = useState("");
+  const [rowId, setRowId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("user_settings")
+        .select("id,gemini_api_key")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        setRowId(data.id);
+        setKey(data.gemini_api_key ?? "");
+      }
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    const value = key.trim() || null;
+    const { error } = rowId
+      ? await supabase.from("user_settings").update({ gemini_api_key: value }).eq("id", rowId)
+      : await supabase
+          .from("user_settings")
+          .insert({ gemini_api_key: value })
+          .select("id")
+          .single()
+          .then((r) => {
+            if (r.data) setRowId(r.data.id);
+            return { error: r.error };
+          });
+    setSaving(false);
+    if (error) {
+      toast.error("Não consegui salvar a chave");
+      return;
+    }
+    toast.success("Chave do Gemini salva");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Chave da API do Gemini</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Usada pelo Nexus para conversar com o modelo gemini-1.5-flash. Pegue sua chave no Google
+          AI Studio.
+        </p>
+        <Input
+          type="password"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="AIza..."
+          className="font-mono"
+        />
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Salvar chave
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsTab() {
   const { user } = AuthCtx.useAuth();
   const [exporting, setExporting] = useState(false);
@@ -5928,6 +6118,7 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
+      <GeminiKeyCard />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Portabilidade de Dados</CardTitle>
