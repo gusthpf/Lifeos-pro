@@ -2193,6 +2193,7 @@ function LifeCoachApp() {
             <SettingsTab />
           </TabsContent>
         </Tabs>
+        </div>
       </main>
     </div>
   );
