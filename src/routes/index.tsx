@@ -49,6 +49,7 @@ import {
   BookMarked,
   ListTodo,
   Archive,
+  BrainCircuit,
   Radar,
   Clock,
   History,
@@ -78,6 +79,7 @@ import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
 import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
+import { CerebroDigitalTab } from "@/components/CerebroDigital";
 import {
   BarChart,
   Bar,
@@ -2076,7 +2078,7 @@ function LifeCoachApp() {
         <NocPanel />
         <ManagementBar />
         <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-9 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-10 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -2100,6 +2102,9 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="nexus" className="gap-2">
               <Terminal className="h-4 w-4" /> Nexus
+            </TabsTrigger>
+            <TabsTrigger value="cerebro" className="gap-2">
+              <BrainCircuit className="h-4 w-4" /> Cérebro
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Archive className="h-4 w-4" /> Config
@@ -2131,6 +2136,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="nexus" className="mt-6">
             <NexusTab />
+          </TabsContent>
+          <TabsContent value="cerebro" className="mt-6">
+            <CerebroDigitalTab />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
