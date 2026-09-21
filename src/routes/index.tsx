@@ -79,6 +79,7 @@ import { XPStatus } from "@/components/XPStatus";
 import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab";
 import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { CerebroDigitalTab } from "@/components/CerebroDigital";
 import { ProjectsPortfolioTab } from "@/components/ProjectsPortfolio";
 import {
