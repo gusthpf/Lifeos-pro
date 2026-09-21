@@ -66,6 +66,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { format, addWeeks, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1998,6 +2004,12 @@ function LifeCoachApp() {
   const { profile, username, loading, user, signOut } = AuthCtx.useAuth();
   const navigate = useNavigate();
   useTodayAppointmentsAlert();
+  const [activeTab, setActiveTab] = useState("dojo");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const goToTab = (tab: string) => {
+    setActiveTab(tab);
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const fullName = profile?.full_name?.trim() || username || "";
   const firstName = fullName ? fullName.split(/\s+/)[0] : "";
   const getTimeGreeting = () => {
@@ -2047,6 +2059,31 @@ function LifeCoachApp() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <SystemStatus />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="Mais opções" className="px-2">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-48 border-border/80 bg-popover/95 backdrop-blur-md shadow-xl"
+              >
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                  onSelect={() => goToTab("metricas")}
+                >
+                  <Trophy className="h-4 w-4 text-muted-foreground" /> Métricas
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                  onSelect={() => goToTab("settings")}
+                >
+                  <Settings className="h-4 w-4 text-muted-foreground" /> Configurações
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/wiki">
                 <BookMarked className="h-4 w-4" /> Wiki
@@ -2088,8 +2125,9 @@ function LifeCoachApp() {
         <NocDashboardV2 />
         <NocPanel />
         <ManagementBar />
-        <Tabs defaultValue="dojo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-10 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
+        <div ref={tabsRef}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-9 bg-card/60 backdrop-blur border border-border h-auto md:h-12">
             <TabsTrigger value="dojo" className="gap-2">
               <Swords className="h-4 w-4" /> Dojo
             </TabsTrigger>
@@ -2105,9 +2143,6 @@ function LifeCoachApp() {
             <TabsTrigger value="reflexao" className="gap-2">
               <BookOpenText className="h-4 w-4" /> Reflexão
             </TabsTrigger>
-            <TabsTrigger value="metricas" className="gap-2">
-              <Trophy className="h-4 w-4" /> Métricas
-            </TabsTrigger>
             <TabsTrigger value="telemetria" className="gap-2">
               <Activity className="h-4 w-4" /> Telemetria
             </TabsTrigger>
@@ -2119,9 +2154,6 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="portfolio" className="gap-2">
               <Briefcase className="h-4 w-4" /> Portfólio
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Archive className="h-4 w-4" /> Config
             </TabsTrigger>
           </TabsList>
 
@@ -2161,6 +2193,7 @@ function LifeCoachApp() {
             <SettingsTab />
           </TabsContent>
         </Tabs>
+        </div>
       </main>
     </div>
   );
