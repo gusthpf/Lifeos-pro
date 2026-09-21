@@ -5130,11 +5130,20 @@ function NexusTab() {
                   send();
                 }
               }}
-              placeholder="Dúvida técnica, desabafo ou /help..."
-              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-              disabled={sending}
+              placeholder={
+                keyChecked && !apiKey
+                  ? "Configure a chave do Gemini em Configurações..."
+                  : "Dúvida técnica, desabafo ou /help..."
+              }
+              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed"
+              disabled={sending || !keyChecked || !apiKey}
             />
-            <Button size="sm" onClick={send} disabled={sending || !input.trim()} className="gap-1">
+            <Button
+              size="sm"
+              onClick={send}
+              disabled={sending || !input.trim() || !apiKey}
+              className="gap-1"
+            >
               <Send className="h-3 w-3" /> Enviar
             </Button>
           </div>
