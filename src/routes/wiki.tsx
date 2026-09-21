@@ -292,6 +292,8 @@ ${cards}
             ))}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
