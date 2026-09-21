@@ -4547,6 +4547,68 @@ type NexusSession = { id: string; title: string; updated_at: string };
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
+/* Markdown leve: negrito, itálico, código inline, títulos e listas */
+function inlineMd(text: string, keyPrefix: string) {
+  const nodes: React.ReactNode[] = [];
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let n = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const tok = m[0];
+    const k = `${keyPrefix}-${n++}`;
+    if (tok.startsWith("**")) nodes.push(<strong key={k}>{tok.slice(2, -2)}</strong>);
+    else if (tok.startsWith("`"))
+      nodes.push(
+        <code key={k} className="rounded bg-primary/10 px-1 py-0.5 text-[0.85em] text-primary">
+          {tok.slice(1, -1)}
+        </code>,
+      );
+    else nodes.push(<em key={k}>{tok.slice(1, -1)}</em>);
+    last = m.index + tok.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+function MarkdownText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed === "") return <div key={i} className="h-2" />;
+        const heading = /^(#{1,6})\s+(.*)$/.exec(trimmed);
+        if (heading)
+          return (
+            <p key={i} className="font-semibold text-primary">
+              {inlineMd(heading[2], `h${i}`)}
+            </p>
+          );
+        const bullet = /^[-*•]\s+(.*)$/.exec(trimmed);
+        if (bullet)
+          return (
+            <div key={i} className="flex gap-2 pl-2">
+              <span className="text-primary">•</span>
+              <span>{inlineMd(bullet[1], `b${i}`)}</span>
+            </div>
+          );
+        const ordered = /^(\d+)[.)]\s+(.*)$/.exec(trimmed);
+        if (ordered)
+          return (
+            <div key={i} className="flex gap-2 pl-2">
+              <span className="text-primary">{ordered[1]}.</span>
+              <span>{inlineMd(ordered[2], `o${i}`)}</span>
+            </div>
+          );
+        return <p key={i}>{inlineMd(line, `p${i}`)}</p>;
+      })}
+    </div>
+  );
+}
+
+
 function NexusTab() {
   const { user } = AuthCtx.useAuth();
   const [sessions, setSessions] = useState<NexusSession[]>([]);
