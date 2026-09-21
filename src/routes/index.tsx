@@ -4844,11 +4844,13 @@ function NexusTab() {
         console.error("Gemini error:", resp.status, detail);
         if (resp.status === 400 || resp.status === 403)
           toast.error("Chave da API inválida", { description: "Revise a chave em Configurações." });
-        else if (resp.status === 429)
-          toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
-        else toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
-        setMessages((m) => m.slice(0, -1));
-        setInput(raw);
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content: "Erro de conexão com a API. Verifique o console.",
+          },
+        ]);
         setSending(false);
         return;
       }
@@ -4890,9 +4892,14 @@ function NexusTab() {
       });
     } catch (e: any) {
       if (e?.name !== "AbortError") {
-        toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
-        setMessages((m) => m.slice(0, -1));
-        setInput(raw);
+        console.error("Erro de conexão com a API Gemini:", e);
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content: "Erro de conexão com a API. Verifique o console.",
+          },
+        ]);
       }
     } finally {
       setSending(false);
