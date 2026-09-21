@@ -68,6 +68,7 @@ export function CerebroDigitalTab() {
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [module, setModule] = useState<string>(MODULES[0]);
   const [title, setTitle] = useState("");
