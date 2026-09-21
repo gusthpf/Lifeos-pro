@@ -2143,9 +2143,6 @@ function LifeCoachApp() {
             <TabsTrigger value="reflexao" className="gap-2">
               <BookOpenText className="h-4 w-4" /> Reflexão
             </TabsTrigger>
-            <TabsTrigger value="metricas" className="gap-2">
-              <Trophy className="h-4 w-4" /> Métricas
-            </TabsTrigger>
             <TabsTrigger value="telemetria" className="gap-2">
               <Activity className="h-4 w-4" /> Telemetria
             </TabsTrigger>
@@ -2157,9 +2154,6 @@ function LifeCoachApp() {
             </TabsTrigger>
             <TabsTrigger value="portfolio" className="gap-2">
               <Briefcase className="h-4 w-4" /> Portfólio
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Archive className="h-4 w-4" /> Config
             </TabsTrigger>
           </TabsList>
 
