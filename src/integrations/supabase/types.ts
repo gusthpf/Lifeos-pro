@@ -575,6 +575,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          gemini_api_key: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          gemini_api_key?: string | null
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          gemini_api_key?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       workouts: {
         Row: {
           category: string
