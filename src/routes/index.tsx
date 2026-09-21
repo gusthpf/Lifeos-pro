@@ -4917,9 +4917,7 @@ function NexusTab() {
           <code style={{ color: "var(--nexus-code-fg)" }}>{p.content}</code>
         </pre>
       ) : (
-        <span key={i} className="whitespace-pre-wrap">
-          {p.content}
-        </span>
+        <MarkdownText key={i} text={p.content} />
       ),
     );
   }
