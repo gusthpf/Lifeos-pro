@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { BrainCircuit, Copy, Check, Trash2, Loader2 } from "lucide-react";
 
@@ -62,6 +68,7 @@ export function CerebroDigitalTab() {
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [module, setModule] = useState<string>(MODULES[0]);
   const [title, setTitle] = useState("");
@@ -105,10 +112,12 @@ export function CerebroDigitalTab() {
     setTitle("");
     setExplanation("");
     setCode("");
+    setFormOpen(false);
     load();
   };
 
   const remove = async (id: string) => {
+    if (!window.confirm("Excluir esta anotação definitivamente?")) return;
     const { error } = await supabase.from("study_notes").delete().eq("id", id);
     if (error) toast.error("Erro ao excluir.");
     else {
@@ -118,15 +127,26 @@ export function CerebroDigitalTab() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Formulário */}
-      <section className="rounded-xl border border-border bg-card/60 backdrop-blur p-5 h-fit">
-        <div className="flex items-center gap-2 mb-4">
-          <BrainCircuit className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold tracking-tight">Nova Anotação</h2>
-        </div>
-
-        <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Formulário recolhível */}
+      <Accordion
+        type="single"
+        collapsible
+        value={formOpen ? "form" : ""}
+        onValueChange={(v) => setFormOpen(v === "form")}
+        className="rounded-xl border border-border bg-card/60 backdrop-blur px-5"
+      >
+        <AccordionItem value="form" className="border-none">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              <span className="text-lg font-semibold tracking-tight">
+                Adicionar Nova Anotação
+              </span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+        <div className="space-y-4 pb-2">
           <div>
             <label className="text-xs uppercase tracking-widest text-muted-foreground">Módulo</label>
             <Select value={module} onValueChange={setModule}>
@@ -178,7 +198,9 @@ export function CerebroDigitalTab() {
             Salvar Anotação
           </Button>
         </div>
-      </section>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Feed */}
       <section className="space-y-4">
@@ -189,7 +211,7 @@ export function CerebroDigitalTab() {
           </div>
         ) : notes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhuma anotação ainda. Registre a primeira ao lado.
+            Nenhuma anotação ainda. Use o formulário acima para registrar a primeira.
           </p>
         ) : (
           notes.map((n) => (

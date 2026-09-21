@@ -6,7 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookMarked, Search, ArrowLeft, Loader2, Copy, FileDown } from "lucide-react";
+import {
+  BookMarked,
+  Search,
+  ArrowLeft,
+  Loader2,
+  Copy,
+  FileDown,
+  BrainCircuit,
+  Briefcase,
+  Trash2,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CerebroDigitalTab } from "@/components/CerebroDigital";
+import { ProjectsPortfolioTab } from "@/components/ProjectsPortfolio";
 import { SystemStatus } from "@/components/SystemStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast, Toaster } from "sonner";
@@ -66,6 +79,17 @@ function WikiPage() {
       setEntries((data ?? []) as WikiEntry[]);
     })();
   }, [user]);
+
+  async function removeEntry(id: string) {
+    if (!window.confirm("Excluir esta entrada da Wiki definitivamente?")) return;
+    const { error } = await supabase.from("kb_tecnica").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir.");
+      return;
+    }
+    toast.success("Entrada removida.");
+    setEntries((prev) => (prev ?? []).filter((e) => e.id !== id));
+  }
 
   const filtered = useMemo(() => {
     if (!entries) return null;
@@ -192,6 +216,28 @@ ${cards}
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
+        <Tabs defaultValue="wiki" className="w-full">
+          <TabsList className="mb-6 grid w-full grid-cols-3 sm:max-w-lg">
+            <TabsTrigger value="wiki" className="gap-1.5">
+              <BookMarked className="h-4 w-4" /> Wiki
+            </TabsTrigger>
+            <TabsTrigger value="cerebro" className="gap-1.5">
+              <BrainCircuit className="h-4 w-4" /> Cérebro
+            </TabsTrigger>
+            <TabsTrigger value="portfolio" className="gap-1.5">
+              <Briefcase className="h-4 w-4" /> Portfólio
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="cerebro">
+            <CerebroDigitalTab />
+          </TabsContent>
+
+          <TabsContent value="portfolio">
+            <ProjectsPortfolioTab />
+          </TabsContent>
+
+          <TabsContent value="wiki">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -247,7 +293,18 @@ ${cards}
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base leading-snug">{e.titulo}</CardTitle>
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="text-base leading-snug">{e.titulo}</CardTitle>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeEntry(e.id)}
+                      aria-label="Excluir entrada"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <div className="flex items-center gap-2 pt-1">
                     {e.criado_em && (
                       <span className="text-xs text-muted-foreground">
@@ -270,6 +327,8 @@ ${cards}
             ))}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

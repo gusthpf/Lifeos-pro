@@ -10,6 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { Briefcase, Trash2, Loader2, Mic, X } from "lucide-react";
 
@@ -35,6 +41,7 @@ export function ProjectsPortfolioTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [interview, setInterview] = useState<Project | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [pain, setPain] = useState("");
@@ -85,10 +92,12 @@ export function ProjectsPortfolioTab() {
     setSolution("");
     setImpact("");
     setStack("");
+    setFormOpen(false);
     load();
   };
 
   const remove = async (id: string) => {
+    if (!window.confirm("Excluir este projeto definitivamente?")) return;
     const { error } = await supabase.from("projects_portfolio").delete().eq("id", id);
     if (error) toast.error("Erro ao excluir.");
     else {
@@ -98,15 +107,26 @@ export function ProjectsPortfolioTab() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Formulário */}
-      <section className="rounded-xl border border-border bg-card/60 backdrop-blur p-5 h-fit">
-        <div className="flex items-center gap-2 mb-4">
-          <Briefcase className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold tracking-tight">Nova Iniciativa</h2>
-        </div>
-
-        <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Formulário recolhível */}
+      <Accordion
+        type="single"
+        collapsible
+        value={formOpen ? "form" : ""}
+        onValueChange={(v) => setFormOpen(v === "form")}
+        className="rounded-xl border border-border bg-card/60 backdrop-blur px-5"
+      >
+        <AccordionItem value="form" className="border-none">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              <span className="text-lg font-semibold tracking-tight">
+                Adicionar Nova Iniciativa
+              </span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+        <div className="space-y-4 pb-2">
           <div>
             <label className="text-xs uppercase tracking-widest text-muted-foreground">
               Título da Iniciativa
@@ -172,7 +192,9 @@ export function ProjectsPortfolioTab() {
             Salvar Projeto
           </Button>
         </div>
-      </section>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Feed */}
       <section className="space-y-4">
@@ -183,10 +205,12 @@ export function ProjectsPortfolioTab() {
           </div>
         ) : projects.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum projeto ainda. Registre a primeira iniciativa ao lado.
+            Nenhum projeto ainda. Use o formulário acima para registrar a primeira
+            iniciativa.
           </p>
         ) : (
-          projects.map((p) => (
+          <div className="grid gap-4 md:grid-cols-2">
+          {projects.map((p) => (
             <article
               key={p.id}
               className="rounded-xl border border-border bg-card/60 backdrop-blur p-4"
@@ -234,7 +258,8 @@ export function ProjectsPortfolioTab() {
                 {new Date(p.created_at).toLocaleString("pt-BR")}
               </p>
             </article>
-          ))
+          ))}
+          </div>
         )}
       </section>
 
