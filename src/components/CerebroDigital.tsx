@@ -112,6 +112,7 @@ export function CerebroDigitalTab() {
     setTitle("");
     setExplanation("");
     setCode("");
+    setFormOpen(false);
     load();
   };
 
