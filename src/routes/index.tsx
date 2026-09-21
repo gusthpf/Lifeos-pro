@@ -5052,6 +5052,11 @@ function NexusTab() {
           </label>
         </CardHeader>
         <CardContent className="p-0">
+          {keyChecked && !apiKey && (
+            <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+              ⚠️ Chave da API não configurada. Por favor, adicione na tela de Configurações.
+            </div>
+          )}
           <div ref={scrollRef} className="h-[480px] overflow-y-auto p-4 text-sm">
             {messages.length === 0 ? (
               <div className="text-muted-foreground space-y-1">
