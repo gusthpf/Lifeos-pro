@@ -4530,6 +4530,41 @@ type NexusSession = { id: string; title: string; updated_at: string };
 
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+const GEMINI_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+async function requestGemini(apiKey: string, body: string, signal: AbortSignal) {
+  const delays = [0, 800, 1800];
+
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    const delay = delays[attempt];
+    if (delay > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(resolve, delay);
+        signal.addEventListener(
+          "abort",
+          () => {
+            window.clearTimeout(timer);
+            reject(new DOMException("Aborted", "AbortError"));
+          },
+          { once: true },
+        );
+      });
+    }
+
+    const response = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal,
+    });
+
+    if (response.ok || !GEMINI_RETRYABLE_STATUS.has(response.status) || attempt === delays.length - 1) {
+      return response;
+    }
+  }
+
+  throw new Error("Gemini request ended without a response");
+}
 
 /* Markdown leve: negrito, itálico, código inline, títulos e listas */
 function inlineMd(text: string, keyPrefix: string) {
@@ -4813,26 +4848,29 @@ function NexusTab() {
         parts: [{ text: m.content }],
       }));
 
-      const resp = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const resp = await requestGemini(
+        apiKey,
+        JSON.stringify({
           system_instruction: { parts: [{ text: systemText }] },
           contents: history,
         }),
-        signal: controller.signal,
-      });
+        controller.signal,
+      );
 
       if (!resp.ok) {
         const detail = await resp.text().catch(() => "");
         console.error("Gemini error:", resp.status, detail);
-        if (resp.status === 400 || resp.status === 403)
+        if (resp.status === 400 || resp.status === 403) {
           toast.error("Chave da API inválida", { description: "Revise a chave em Configurações." });
+        }
+        const errorMessage = GEMINI_RETRYABLE_STATUS.has(resp.status)
+          ? "O Gemini está temporariamente sobrecarregado. Tente novamente em alguns instantes."
+          : "Não foi possível conectar ao Gemini. Revise a chave em Configurações.";
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
-            content: "Erro de conexão com a API. Verifique o console.",
+            content: errorMessage,
           },
         ]);
         setSending(false);
