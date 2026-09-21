@@ -2137,6 +2137,9 @@ function LifeCoachApp() {
           <TabsContent value="nexus" className="mt-6">
             <NexusTab />
           </TabsContent>
+          <TabsContent value="cerebro" className="mt-6">
+            <CerebroDigitalTab />
+          </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
           </TabsContent>
