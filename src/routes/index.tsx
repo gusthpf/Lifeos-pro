@@ -2059,6 +2059,31 @@ function LifeCoachApp() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <SystemStatus />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="Mais opções" className="px-2">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-48 border-border/80 bg-popover/95 backdrop-blur-md shadow-xl"
+              >
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                  onSelect={() => goToTab("metricas")}
+                >
+                  <Trophy className="h-4 w-4 text-muted-foreground" /> Métricas
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                  onSelect={() => goToTab("settings")}
+                >
+                  <Settings className="h-4 w-4 text-muted-foreground" /> Configurações
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/wiki">
                 <BookMarked className="h-4 w-4" /> Wiki
