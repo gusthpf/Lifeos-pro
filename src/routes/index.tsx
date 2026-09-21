@@ -4529,7 +4529,7 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 type NexusSession = { id: string; title: string; updated_at: string };
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
 const GEMINI_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 async function requestGemini(apiKey: string, body: string, signal: AbortSignal) {
