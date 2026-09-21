@@ -4545,7 +4545,7 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 type NexusSession = { id: string; title: string; updated_at: string };
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 /* Markdown leve: negrito, itálico, código inline, títulos e listas */
 function inlineMd(text: string, keyPrefix: string) {
