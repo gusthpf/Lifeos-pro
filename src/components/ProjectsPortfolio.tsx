@@ -89,6 +89,7 @@ export function ProjectsPortfolioTab() {
   };
 
   const remove = async (id: string) => {
+    if (!window.confirm("Excluir este projeto definitivamente?")) return;
     const { error } = await supabase.from("projects_portfolio").delete().eq("id", id);
     if (error) toast.error("Erro ao excluir.");
     else {
@@ -98,15 +99,26 @@ export function ProjectsPortfolioTab() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Formulário */}
-      <section className="rounded-xl border border-border bg-card/60 backdrop-blur p-5 h-fit">
-        <div className="flex items-center gap-2 mb-4">
-          <Briefcase className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold tracking-tight">Nova Iniciativa</h2>
-        </div>
-
-        <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Formulário recolhível */}
+      <Accordion
+        type="single"
+        collapsible
+        value={formOpen ? "form" : ""}
+        onValueChange={(v) => setFormOpen(v === "form")}
+        className="rounded-xl border border-border bg-card/60 backdrop-blur px-5"
+      >
+        <AccordionItem value="form" className="border-none">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              <span className="text-lg font-semibold tracking-tight">
+                Adicionar Nova Iniciativa
+              </span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+        <div className="space-y-4 pb-2">
           <div>
             <label className="text-xs uppercase tracking-widest text-muted-foreground">
               Título da Iniciativa
