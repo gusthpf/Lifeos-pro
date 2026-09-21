@@ -190,7 +190,9 @@ export function CerebroDigitalTab() {
             Salvar Anotação
           </Button>
         </div>
-      </section>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Feed */}
       <section className="space-y-4">
@@ -201,7 +203,7 @@ export function CerebroDigitalTab() {
           </div>
         ) : notes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhuma anotação ainda. Registre a primeira ao lado.
+            Nenhuma anotação ainda. Use o formulário acima para registrar a primeira.
           </p>
         ) : (
           notes.map((n) => (
