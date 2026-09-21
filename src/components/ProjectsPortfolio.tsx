@@ -184,7 +184,9 @@ export function ProjectsPortfolioTab() {
             Salvar Projeto
           </Button>
         </div>
-      </section>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Feed */}
       <section className="space-y-4">
