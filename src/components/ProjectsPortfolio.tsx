@@ -183,10 +183,12 @@ export function ProjectsPortfolioTab() {
           </div>
         ) : projects.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum projeto ainda. Registre a primeira iniciativa ao lado.
+            Nenhum projeto ainda. Use o formulário acima para registrar a primeira
+            iniciativa.
           </p>
         ) : (
-          projects.map((p) => (
+          <div className="grid gap-4 md:grid-cols-2">
+          {projects.map((p) => (
             <article
               key={p.id}
               className="rounded-xl border border-border bg-card/60 backdrop-blur p-4"
