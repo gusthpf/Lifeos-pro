@@ -236,7 +236,8 @@ export function ProjectsPortfolioTab() {
                 {new Date(p.created_at).toLocaleString("pt-BR")}
               </p>
             </article>
-          ))
+          ))}
+          </div>
         )}
       </section>
 
