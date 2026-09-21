@@ -4737,6 +4737,13 @@ function NexusTab() {
       return;
     }
 
+    if (!apiKey) {
+      toast.error("Chave da API não configurada", {
+        description: "Adicione sua chave do Gemini na tela de Configurações.",
+      });
+      return;
+    }
+
     const sid = await ensureSession(raw);
     if (!sid) return;
 
@@ -4750,37 +4757,33 @@ function NexusTab() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    let assistantSoFar = "";
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
-      });
-    };
-
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token =
-        sessionData.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const systemText = useContext
+        ? await buildContext()
+        : "Você é o Nexus, coach-mentor técnico. Responda em português do Brasil usando Markdown.";
 
-      const resp = await fetch(NEXUS_URL, {
+      const history = next.slice(-12).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+
+      const resp = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ messages: next, useContext }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemText }] },
+          contents: history,
+        }),
         signal: controller.signal,
       });
 
-      if (!resp.ok || !resp.body) {
-        if (resp.status === 429) toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
-        else if (resp.status === 402) toast.error("Créditos esgotados", { description: "Adicione em Workspace > Usage." });
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => "");
+        console.error("Gemini error:", resp.status, detail);
+        if (resp.status === 400 || resp.status === 403)
+          toast.error("Chave da API inválida", { description: "Revise a chave em Configurações." });
+        else if (resp.status === 429)
+          toast.error("Muitas requisições", { description: "Aguarde alguns segundos." });
         else toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
         setMessages((m) => m.slice(0, -1));
         setInput(raw);
@@ -4788,47 +4791,41 @@ function NexusTab() {
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let done = false;
-      while (!done) {
-        const { done: rd, value } = await reader.read();
-        if (rd) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            done = true;
-            break;
-          }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const c = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (c) upsertAssistant(c);
-          } catch {
-            buf = line + "\n" + buf;
-            break;
-          }
-        }
+      const json: any = await resp.json();
+      const full: string =
+        (json?.candidates?.[0]?.content?.parts ?? [])
+          .map((p: any) => p?.text ?? "")
+          .join("") || "";
+
+      if (!full) {
+        toast.error("Resposta vazia do Gemini");
+        setSending(false);
+        return;
       }
 
-      if (assistantSoFar) {
-        await persistMessage(sid, "assistant", assistantSoFar);
-        // Atualiza ordem da sessão na lista
-        setSessions((s) => {
-          const found = s.find((x) => x.id === sid);
-          if (!found) return s;
-          const updated = { ...found, updated_at: new Date().toISOString() };
-          return [updated, ...s.filter((x) => x.id !== sid)];
-        });
+      // Efeito de digitação suave
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      setSending(false);
+      const step = Math.max(2, Math.ceil(full.length / 220));
+      for (let i = 0; i < full.length; i += step) {
+        if (controller.signal.aborted) break;
+        const slice = full.slice(0, i + step);
+        setMessages((prev) =>
+          prev.map((m, idx) => (idx === prev.length - 1 ? { ...m, content: slice } : m)),
+        );
+        await new Promise((r) => setTimeout(r, 12));
       }
+      setMessages((prev) =>
+        prev.map((m, idx) => (idx === prev.length - 1 ? { ...m, content: full } : m)),
+      );
+
+      await persistMessage(sid, "assistant", full);
+      setSessions((s) => {
+        const found = s.find((x) => x.id === sid);
+        if (!found) return s;
+        const updated = { ...found, updated_at: new Date().toISOString() };
+        return [updated, ...s.filter((x) => x.id !== sid)];
+      });
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         toast.error("Nexus offline", { description: "Tente novamente mais tarde." });
