@@ -4529,7 +4529,7 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 type NexusSession = { id: string; title: string; updated_at: string };
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 /* Markdown leve: negrito, itálico, código inline, títulos e listas */
 function inlineMd(text: string, keyPrefix: string) {
@@ -6031,7 +6031,7 @@ function GeminiKeyCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Usada pelo Nexus para conversar com o modelo gemini-3.8-flash. Pegue sua chave no Google
+          Usada pelo Nexus para conversar com o modelo gemini-2.0-flash. Pegue sua chave no Google
           AI Studio.
         </p>
         <Input

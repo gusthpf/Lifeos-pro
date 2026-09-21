@@ -88,6 +88,10 @@ function AuthPage() {
           description: "Confirme o link enviado ao seu e-mail para ativar seu acesso operacional.",
           className: "border-emerald-500/60",
         });
+      } else if (error.code === "invalid_credentials" || /invalid login/i.test(error.message)) {
+        toast.error("E-mail ou senha incorretos", {
+          description: "Confira suas credenciais e tente novamente.",
+        });
       } else {
         toast.error("Falha ao entrar", { description: "Verifique suas credenciais." });
       }
