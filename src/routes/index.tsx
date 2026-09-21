@@ -80,6 +80,7 @@ import { CalendarTab, useTodayAppointmentsAlert } from "@/components/CalendarTab
 import { TelemetryTab } from "@/components/TelemetryTab";
 import { CalendarDays } from "lucide-react";
 import { CerebroDigitalTab } from "@/components/CerebroDigital";
+import { ProjectsPortfolioTab } from "@/components/ProjectsPortfolio";
 import {
   BarChart,
   Bar,
@@ -2106,6 +2107,9 @@ function LifeCoachApp() {
             <TabsTrigger value="cerebro" className="gap-2">
               <BrainCircuit className="h-4 w-4" /> Cérebro
             </TabsTrigger>
+            <TabsTrigger value="portfolio" className="gap-2">
+              <Briefcase className="h-4 w-4" /> Portfólio
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Archive className="h-4 w-4" /> Config
             </TabsTrigger>
@@ -2139,6 +2143,9 @@ function LifeCoachApp() {
           </TabsContent>
           <TabsContent value="cerebro" className="mt-6">
             <CerebroDigitalTab />
+          </TabsContent>
+          <TabsContent value="portfolio" className="mt-6">
+            <ProjectsPortfolioTab />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <SettingsTab />
