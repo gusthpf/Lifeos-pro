@@ -192,6 +192,28 @@ ${cards}
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">
+        <Tabs defaultValue="wiki" className="w-full">
+          <TabsList className="mb-6 grid w-full grid-cols-3 sm:max-w-lg">
+            <TabsTrigger value="wiki" className="gap-1.5">
+              <BookMarked className="h-4 w-4" /> Wiki
+            </TabsTrigger>
+            <TabsTrigger value="cerebro" className="gap-1.5">
+              <BrainCircuit className="h-4 w-4" /> Cérebro
+            </TabsTrigger>
+            <TabsTrigger value="portfolio" className="gap-1.5">
+              <Briefcase className="h-4 w-4" /> Portfólio
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="cerebro">
+            <CerebroDigitalTab />
+          </TabsContent>
+
+          <TabsContent value="portfolio">
+            <ProjectsPortfolioTab />
+          </TabsContent>
+
+          <TabsContent value="wiki">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
